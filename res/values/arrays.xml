@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string-array name="reloadTimeValues">
+    <item>1</item>
+    <item>60</item>
+    <item>1440</item>
+    <item>10080</item>
+  </string-array>
+  <string-array name="reloadTimeEntries">
+    <item>1 minute</item>
+    <item>1 hour</item>
+    <item>1 day</item>
+    <item>1 week (yawn)</item>
+  </string-array>
+</resources>

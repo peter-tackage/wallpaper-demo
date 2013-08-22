@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="app_name">Wallpaper Demo</string>
+  <string name="wallpaper_settings">Wallpaper Settings</string>
+  <string name="wallpaper_waveform">Wallpaper Waveform</string>
+  <string name="genres_preference_title">Genres</string>
+  <string name="genres_preference_summary">"The genres of the track wallpapers
+    that are displayed."
+  </string>
+  <string name="dialog_title_genres_preference">Genres</string>
+  <string name="refresh_preference_title">Refresh Rate</string>
+  <string name="refresh_preference_summary">How long you wait until the next
+    track wallpaper is shown.
+  </string>
+  <string name="reload_preference">reload_preference</string>
+  <string name="genres_preference">genres_preference</string>
+  <string name="wallpaper_description">Show random SoundCloud waveforms</string>
+</resources>

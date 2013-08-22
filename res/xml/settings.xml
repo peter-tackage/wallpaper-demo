@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+  android:title="@string/wallpaper_settings"
+  android:key="wallpaper_settings">
+  <EditTextPreference
+    android:key="@string/genres_preference"
+    android:title="@string/genres_preference_title"
+    android:summary="@string/genres_preference_summary"
+    android:dialogTitle="@string/dialog_title_genres_preference" />
+  <ListPreference
+    android:title="@string/refresh_preference_title"
+    android:summary="@string/refresh_preference_summary"
+    android:key="@string/reload_preference"
+    android:defaultValue="60"
+    android:entries="@array/reloadTimeEntries"
+    android:entryValues="@array/reloadTimeValues" />
+</PreferenceScreen>
