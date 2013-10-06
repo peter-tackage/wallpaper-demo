@@ -24,7 +24,8 @@ public class WallpaperApplication extends Application {
     public WallpaperApplication() {
         super();
         Log.d(TAG, "Constructing WallpaperApplication");
-        sInstance = this; // init self singleton.
+        if(sInstance == null)
+            sInstance = this; // init self singleton.
     }
 
     @Override
@@ -56,24 +57,22 @@ public class WallpaperApplication extends Application {
             String apiScheme = properties.getProperty("host.scheme");
             String apiDomain = properties.getProperty("host.domain");
             String clientId = properties.getProperty("client.id");
-            String clientSecret = properties.getProperty("client.secret");
-            Log.i(TAG, "initApiClient() - creating with clientId: " + clientId + " clientSecret: " + clientSecret + " API: " + apiScheme + apiDomain);
+            Log.i(TAG, "initApiClient() - creating with clientId: " + clientId + " API: " + apiScheme + apiDomain);
 
             return new ApiClient(_requestQueue, _gson, apiScheme, apiDomain, clientId);
         } catch(IOException e) {
             Log.e(TAG, "Failed to initialise SoundCloud API Client", e);
             throw new RuntimeException("Unable to initialise SoundCloud API Client");
         } finally {
-            safeClose(inputStream);
+            closeQuietly(inputStream);
         }
     }
 
-    private void safeClose(InputStream _stream) {
+    private void closeQuietly(InputStream _stream) {
         if(_stream != null) {
             try {
                 _stream.close();
-            } catch(IOException e) { // ignore }
-            }
+            } catch(IOException e) { } // ignore
         }
     }
 }
