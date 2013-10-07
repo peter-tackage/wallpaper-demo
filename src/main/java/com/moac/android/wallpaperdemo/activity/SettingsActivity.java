@@ -3,13 +3,14 @@ package com.moac.android.wallpaperdemo.activity;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.preference.PreferenceActivity;
+import android.preference.PreferenceFragment;
 import com.moac.android.wallpaperdemo.R;
 
-public class WallpaperSettings extends PreferenceActivity implements SharedPreferences.OnSharedPreferenceChangeListener {
+public class SettingsActivity extends PreferenceActivity implements SharedPreferences.OnSharedPreferenceChangeListener {
 
     @Override
-    protected void onCreate(Bundle icicle) {
-        super.onCreate(icicle);
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
         getPreferenceManager().setSharedPreferencesName(
           getString(R.string.wallpaper_settings));
         addPreferencesFromResource(R.xml.settings);
@@ -18,12 +19,12 @@ public class WallpaperSettings extends PreferenceActivity implements SharedPrefe
     }
 
     @Override
-    protected void onResume() {
+    public void onResume() {
         super.onResume();
     }
 
     @Override
-    protected void onDestroy() {
+    public void onDestroy() {
         getPreferenceManager().getSharedPreferences()
           .unregisterOnSharedPreferenceChangeListener(this);
         super.onDestroy();
