@@ -68,13 +68,14 @@ public class WallpaperApplication extends Application {
             String apiScheme = getProperty(properties, "host.scheme");
             String apiDomain = getProperty(properties, "host.domain");
             String clientId = getProperty(properties, "client.id");
+            String format = getProperty(properties, "format");
 
-            Log.i(TAG, "createApiClient() - creating with clientId: " + clientId + " API: " + apiScheme + apiDomain);
+            Log.i(TAG, "createApiClient() - creating with format: " + format + " clientId: " + clientId + " API: " + apiScheme + apiDomain);
 
             String apiUrl = new Uri.Builder().scheme(apiScheme).authority(apiDomain).toString();
 
-            // Add client id to query string for every request.
-            RequestInterceptor ri = new ScRequestInterceptor(clientId);
+            // Add client id and format to query string for every request.
+            RequestInterceptor ri = new ScRequestInterceptor(clientId, format);
 
             // Uses GSON JSON mapping by default.
             RestAdapter restAdapter = new RestAdapter.Builder()
