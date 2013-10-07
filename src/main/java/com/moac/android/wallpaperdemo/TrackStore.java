@@ -1,13 +1,13 @@
 package com.moac.android.wallpaperdemo;
 
 import android.util.Log;
-import com.android.volley.Response;
-import com.android.volley.VolleyError;
-import com.moac.android.wallpaperdemo.api.ApiRequest;
-import com.moac.android.wallpaperdemo.api.TracksEndPoint;
+import com.moac.android.wallpaperdemo.api.SoundCloudApi;
 import com.moac.android.wallpaperdemo.model.Track;
+import retrofit.Callback;
+import retrofit.RetrofitError;
+import retrofit.client.Response;
 
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
@@ -15,40 +15,46 @@ public class TrackStore {
 
     private static final String TAG = TrackStore.class.getSimpleName();
 
-    private static Random sRNG = new Random();
+    private SoundCloudApi mApi;
     private List<Track> mTracks;
+    private Random mRandom;
 
-    public TrackStore() {
-        // FIXME Remove hardcoding of genre
+    private final Object LOCK = new Object();
+
+    public TrackStore(SoundCloudApi _api) {
+        mApi = _api;
+        mTracks = Collections.emptyList();
+        mRandom = new Random();
         buildTrackModel("electronic", 0);
     }
 
     public Track getRandomTrack() {
-        if(mTracks.isEmpty())
-            return null;
-        int index = sRNG.nextInt(mTracks.size() - 1);
-        return mTracks.get(index);
+        synchronized(LOCK) {
+            if(mTracks.isEmpty())
+                return null;
+            int index = mRandom.nextInt(mTracks.size() - 1);
+            return mTracks.get(index);
+        }
     }
 
     public void buildTrackModel(String _genre, int _offset) {
         Log.i(TAG, "buildTrackModel() genre: " + _genre);
-
-        mTracks = new ArrayList<Track>();  // clear!
-        ApiRequest<List<Track>> request = TracksEndPoint.getTracksByGenre(_genre, _offset);
-        WallpaperApplication.getInstance().getApiClient().execute(request, new TracksResponseListener(), new Response.ErrorListener() {
+        mApi.getTrackList(_genre, _genre, _offset, new Callback<List<Track>>() {
             @Override
-            public void onErrorResponse(VolleyError volleyError) {
-                Log.w(TAG, "onErrorResponse() - " + volleyError.getMessage());
-                Log.w(TAG, "onErrorResponse() - " + volleyError.networkResponse);
+            public void success(List<Track> tracks, Response response) {
+                Log.i(TAG, "Successfully retrieved tracks: " + tracks.size());
+                synchronized(LOCK) {
+                    mTracks = tracks;
+                }
+            }
+
+            @Override
+            public void failure(RetrofitError error) {
+                Log.w(TAG, "Failed to retrieve track", error);
+                synchronized(LOCK) {
+                    mTracks = Collections.emptyList();
+                }
             }
         });
-    }
-
-    private class TracksResponseListener implements Response.Listener<List<Track>> {
-        @Override
-        public void onResponse(List<Track> tracks) {
-            Log.i(TAG, "onResponse() got tracks count: " + tracks.size());
-            mTracks = tracks;
-        }
     }
 }

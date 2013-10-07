@@ -26,6 +26,7 @@ public class ModelDeserializationTest {
 
     @Before
     public void setup() {
+        // This assumes default Gson is used by model classes.
         gson = new GsonBuilder().create();
     }
 

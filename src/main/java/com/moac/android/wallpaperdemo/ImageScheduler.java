@@ -8,9 +8,11 @@ import com.android.volley.VolleyError;
 import com.android.volley.toolbox.ImageLoader;
 import com.moac.android.wallpaperdemo.model.Track;
 
+import java.util.concurrent.TimeUnit;
+
 public class ImageScheduler {
 
-    private final int DEFAULT_NEXT_WAVEFORM_INTERVAL_MILLIS = 30 * 1000;
+    private final int DEFAULT_WAVEFORM_INTERVAL_SEC = 30;
 
     private static final String TAG = ImageScheduler.class.getSimpleName();
 
@@ -28,8 +30,10 @@ public class ImageScheduler {
                 // TODO Dynamically change the column count.
                 fetchNextImage();
             } finally {
-                // Retask.
-                mHandler.postDelayed(this, DEFAULT_NEXT_WAVEFORM_INTERVAL_MILLIS);
+                // Retask
+                // FIXME - Seems a waste if interval is not dynamic.
+                mHandler.postDelayed(this,
+                  TimeUnit.MILLISECONDS.convert(DEFAULT_WAVEFORM_INTERVAL_SEC, TimeUnit.SECONDS));
             }
         }
     };
@@ -41,7 +45,7 @@ public class ImageScheduler {
         mHandler = new Handler();
         mSchedulerListener = _listener;
         mImageDrawer = new ImageDrawer();
-        mTrackStore = new TrackStore();
+        mTrackStore = new TrackStore(WallpaperApplication.getInstance().getSoundCloudApi());
     }
 
 //    // Define connectivity first.
@@ -67,11 +71,12 @@ public class ImageScheduler {
     }
 
     public void start() {
-        long now = android.os.SystemClock.uptimeMillis();
+        final long now = android.os.SystemClock.uptimeMillis();
+        final long interval = TimeUnit.MILLISECONDS.convert(DEFAULT_WAVEFORM_INTERVAL_SEC, TimeUnit.SECONDS);
         long delay = 0;
-        if(now - DEFAULT_NEXT_WAVEFORM_INTERVAL_MILLIS < mScheduledFor) {
+        if(now - interval < mScheduledFor) {
             // Reschedule its original time to remain periodic
-            delay = mScheduledFor + DEFAULT_NEXT_WAVEFORM_INTERVAL_MILLIS - mPausedAt;
+            delay = mScheduledFor + interval - mPausedAt;
         }
         mScheduledFor = now + delay;
         mHandler.postAtTime(drawRunner, mScheduledFor);
@@ -88,7 +93,7 @@ public class ImageScheduler {
         if(track != null) {
             mTrack = track;
             Log.i(TAG, "fetchNextImage() - waveform URL: " + track.getWaveformUrl());
-            WallpaperApplication.getInstance().getVolley().getImageLoader().get(track.getWaveformUrl(),
+            WallpaperApplication.getInstance().getImageLoader().get(track.getWaveformUrl(),
               new WaveformResponseListener(new WaveformProcessor(), track));
         }
     }
@@ -107,8 +112,10 @@ public class ImageScheduler {
         public void onResponse(ImageLoader.ImageContainer _imageContainer, boolean _isImmediate) {
             Log.i(TAG, "WaveformResponseListener onResponse() - isImmediate: " + _isImmediate);
             if(_imageContainer.getBitmap() != null) {
+                // TODO This transform is on the main thread.
                 float[] waveformData = mTransformer.transform(_imageContainer.getBitmap());
                 mWaveformTrack.setWaveformData(waveformData);    // FIXME Memory constraints?
+                // TODO Otto bus?
                 mSchedulerListener.onScheduleEvent();
             }
         }

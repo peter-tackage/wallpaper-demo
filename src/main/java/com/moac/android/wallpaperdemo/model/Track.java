@@ -38,5 +38,4 @@ public class Track {
     public String getPermalinkUrl() { return mPermalinkUrl; }
     public float[] getWaveformData() { return mWaveformData; };
     public void setWaveformData(float[] _waveformData) { mWaveformData = _waveformData; }
-
 }

@@ -1,11 +1,17 @@
 package com.moac.android.wallpaperdemo;
 
 import android.app.Application;
+import android.net.Uri;
 import android.util.Log;
+
 import com.android.volley.RequestQueue;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.moac.android.wallpaperdemo.api.ApiClient;
+import com.android.volley.toolbox.ImageLoader;
+import com.android.volley.toolbox.Volley;
+import com.moac.android.wallpaperdemo.api.ScRequestInterceptor;
+import com.moac.android.wallpaperdemo.api.SoundCloudApi;
+import com.moac.android.wallpaperdemo.util.BitmapLruCache;
+import retrofit.RequestInterceptor;
+import retrofit.RestAdapter;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -17,9 +23,8 @@ public class WallpaperApplication extends Application {
 
     private static WallpaperApplication sInstance;
 
-    private SimpleVolley mVolley;
-    private ApiClient mApiClient;
-    private Gson mGson = new GsonBuilder().create();
+    private ImageLoader mImageLoader;
+    private SoundCloudApi mSoundCloudApi;
 
     public WallpaperApplication() {
         super();
@@ -32,37 +37,57 @@ public class WallpaperApplication extends Application {
     public void onCreate() {
         Log.d(TAG, "onCreate() - start");
         super.onCreate();
-        mVolley = initVolley();
-        mApiClient = initApiClient(mVolley.getRequestQueue(), mGson);
+        mImageLoader = createImageLoader();
+        mSoundCloudApi = createApiClient();
     }
 
     public static WallpaperApplication getInstance() { return sInstance; }
-    public ApiClient getApiClient() { return mApiClient; }
-    public SimpleVolley getVolley() { return mVolley; }
 
-    private SimpleVolley initVolley() {
-        Log.i(TAG, "initVolley() - start");
-        return new SimpleVolley(getApplicationContext());
+    public SoundCloudApi getSoundCloudApi() { return mSoundCloudApi; }
+
+    public ImageLoader getImageLoader() { return mImageLoader; }
+
+    private ImageLoader createImageLoader() {
+        Log.i(TAG, "createImageLoader() - start");
+        RequestQueue rq = Volley.newRequestQueue(getApplicationContext());
+        return new ImageLoader(rq, new BitmapLruCache());
     }
 
-    private ApiClient initApiClient(RequestQueue _requestQueue, Gson _gson) {
-        Log.i(TAG, "initApiClient() - start");
+    private SoundCloudApi createApiClient() {
+        Log.i(TAG, "createApiClient() - start");
 
         InputStream inputStream = null;
         try {
+
+            // Define SoundCloud API properties
             inputStream = getAssets().open("soundcloud.properties");
             Properties properties = new Properties();
             properties.load(inputStream);
 
-            String apiScheme = properties.getProperty("host.scheme");
-            String apiDomain = properties.getProperty("host.domain");
-            String clientId = properties.getProperty("client.id");
-            Log.i(TAG, "initApiClient() - creating with clientId: " + clientId + " API: " + apiScheme + apiDomain);
+            // Get and validate required API properties
+            String apiScheme = getProperty(properties, "host.scheme");
+            String apiDomain = getProperty(properties, "host.domain");
+            String clientId = getProperty(properties, "client.id");
 
-            return new ApiClient(_requestQueue, _gson, apiScheme, apiDomain, clientId);
+            Log.i(TAG, "createApiClient() - creating with clientId: " + clientId + " API: " + apiScheme + apiDomain);
+
+            String apiUrl = new Uri.Builder().scheme(apiScheme).authority(apiDomain).toString();
+
+            // Add client id to query string for every request.
+            RequestInterceptor ri = new ScRequestInterceptor(clientId);
+
+            // Uses GSON JSON mapping by default.
+            RestAdapter restAdapter = new RestAdapter.Builder()
+              .setServer(apiUrl)
+              .setRequestInterceptor(ri)
+              .setLogLevel(RestAdapter.LogLevel.BASIC)
+              .build();
+
+            // Create an instance of the SoundCloud API interface
+            return restAdapter.create(SoundCloudApi.class);
         } catch(IOException e) {
             Log.e(TAG, "Failed to initialise SoundCloud API Client", e);
-            throw new RuntimeException("Unable to initialise SoundCloud API Client");
+            throw new RuntimeException("Unable to initialise SoundCloud API");
         } finally {
             closeQuietly(inputStream);
         }
@@ -74,5 +99,16 @@ public class WallpaperApplication extends Application {
                 _stream.close();
             } catch(IOException e) { } // ignore
         }
+    }
+
+    private static String getProperty(Properties _properties, String _name) {
+        String prop = _properties.getProperty(_name);
+        validateNotNullorEmpty(prop, _name);
+        return prop;
+    }
+
+    private static void validateNotNullorEmpty(String _value, String _name) {
+        if(_value == null || _value.isEmpty())
+            throw new IllegalArgumentException("Required parameter does not exist: " + _name);
     }
 }

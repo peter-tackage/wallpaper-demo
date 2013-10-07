@@ -14,7 +14,6 @@ public class ImageDrawer {
     /*
      * Paints - defined here as constant for performance.
 	 */
-
     private static final int BACKGROUND_COLOR = Color.DKGRAY;
     private static final int COLUMN_GAP_WIDTH_DIP = 10;
 
