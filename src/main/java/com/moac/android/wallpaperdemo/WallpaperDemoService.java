@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.service.wallpaper.WallpaperService;
 import android.util.Log;
 import android.view.SurfaceHolder;
+import com.moac.android.wallpaperdemo.api.SoundCloudApi;
 
 public class WallpaperDemoService extends WallpaperService {
 
@@ -24,7 +25,8 @@ public class WallpaperDemoService extends WallpaperService {
         public WallpaperEngine() {
             super();
             Log.i(TAG, "Creating new WallpaperEngine instance");
-            mImageScheduler = new ImageScheduler(getApplicationContext(), this);
+            SoundCloudApi api = WallpaperApplication.getInstance().getSoundCloudApi();
+            mImageScheduler = new ImageScheduler(getApplicationContext(), new ImageDrawer(), new TrackStore(api), this);
         }
 
         @Override

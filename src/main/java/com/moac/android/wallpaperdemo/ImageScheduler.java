@@ -17,8 +17,8 @@ public class ImageScheduler {
     private static final String TAG = ImageScheduler.class.getSimpleName();
 
     private final Context mContext;
-    private Handler mHandler;
     private final SchedulerListener mSchedulerListener;
+    private Handler mHandler;
     private ImageDrawer mImageDrawer;
     private TrackStore mTrackStore;
     private Track mTrack;
@@ -40,12 +40,12 @@ public class ImageScheduler {
     private long mPausedAt = 0;
     private long mScheduledFor = 0;
 
-    public ImageScheduler(Context _context, SchedulerListener _listener) {
+    public ImageScheduler(Context _context, ImageDrawer _imageDrawer, TrackStore _trackStore, SchedulerListener _listener) {
         mContext = _context;
         mHandler = new Handler();
         mSchedulerListener = _listener;
-        mImageDrawer = new ImageDrawer();
-        mTrackStore = new TrackStore(WallpaperApplication.getInstance().getSoundCloudApi());
+        mImageDrawer = _imageDrawer;
+        mTrackStore = _trackStore;
     }
 
 //    // Define connectivity first.
@@ -57,10 +57,10 @@ public class ImageScheduler {
 //      && connMgr.getActiveNetworkInfo().isAvailable();
 
     public void draw(final Canvas c) {
-        Log.v(TAG, "draw()- start");
+        Log.v(TAG, "draw() - start");
         // Canvas is locked here.
         if(mTrack != null && mTrack.getWaveformData() != null) {
-            Log.v(TAG, "draw()- is valid!");
+            Log.v(TAG, "draw() - is valid!");
             mImageDrawer.drawOn(c, mTrack.getWaveformData(), 125);
         }
     }

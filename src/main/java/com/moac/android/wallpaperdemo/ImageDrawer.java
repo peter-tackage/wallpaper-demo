@@ -5,7 +5,6 @@ import android.graphics.Color;
 import android.graphics.LinearGradient;
 import android.graphics.Paint;
 import android.util.Log;
-import com.moac.android.wallpaperdemo.model.Track;
 
 public class ImageDrawer {
 
@@ -78,5 +77,4 @@ public class ImageDrawer {
             right = left + columnWidth;
         }
     }
-
 }
