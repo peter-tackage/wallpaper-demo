@@ -16,8 +16,9 @@ import java.io.InputStreamReader;
 import java.lang.reflect.Type;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
+import static org.hamcrest.core.IsEqual.equalTo;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
 
 @RunWith(JUnit4.class)
 public class ModelDeserializationTest {
@@ -36,31 +37,31 @@ public class ModelDeserializationTest {
     }
 
     @Test
-    public void testTracksJsonDeserialisation() throws IOException {
+    public void test_tracksJsonDeserialisation() throws IOException {
         String json = readTestDataFile("tracks.json");
         Type collectionType = new TypeToken<List<Track>>() {}.getType();
         List<Track> tracks = gson.fromJson(json, collectionType);
         assertNotNull(tracks);
-        assertEquals(4, tracks.size());
+        assertThat(tracks.size(), equalTo(4));
     }
 
     @Test
-    public void testTrackSingleJsonDeserialisation() throws IOException {
+    public void test_trackSingleJsonDeserialisation() throws IOException {
         String json = readTestDataFile("track_single.json");
         Type trackType = new TypeToken<Track>() {}.getType();
 
         Track track = gson.fromJson(json, trackType);
         assertNotNull(track);
-        assertEquals("99801677", track.getId());
-        assertEquals("Dj Niko Force", track.getTitle());
-        assertEquals("https://w1.sndcdn.com/sPNv4LFoR9b7_m.png", track.getWaveformUrl());
-        assertEquals("http://soundcloud.com/niko-nikiosdj/dj-niko-force", track.getPermalinkUrl());
+        assertThat(track.getId(), equalTo(99801677l));
+        assertThat(track.getTitle(), equalTo("Dj Niko Force"));
+        assertThat(track.getWaveformUrl(), equalTo("https://w1.sndcdn.com/sPNv4LFoR9b7_m.png"));
+        assertThat(track.getPermalinkUrl(), equalTo("http://soundcloud.com/niko-nikiosdj/dj-niko-force"));
 
         User user = track.getUser();
         assertNotNull(user);
-        assertEquals("18402377", user.getId());
-        assertEquals("NIV DJ [official]", user.getUsername());
-        assertEquals("https://api.soundcloud.com/users/18402377", user.getUri());
+        assertThat(user.getId(), equalTo("18402377"));
+        assertThat(user.getUsername(), equalTo("NIV DJ [official]"));
+        assertThat(user.getUri(), equalTo("https://api.soundcloud.com/users/18402377"));
     }
 
     private static String readTestDataFile(String _filename) {

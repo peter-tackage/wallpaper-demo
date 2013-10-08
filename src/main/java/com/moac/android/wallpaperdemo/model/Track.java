@@ -23,7 +23,7 @@ public class Track {
      * configure the deserialisation policy of the GSON instance .. or do you?)
      */
 
-    @SerializedName("id") protected String mId;
+    @SerializedName("id") protected long mId;
     @SerializedName("title") protected String mTitle;
     @SerializedName("user") protected User mUser;
     @SerializedName("waveform_url") protected String mWaveformUrl;
@@ -31,11 +31,13 @@ public class Track {
 
     protected float[] mWaveformData;
 
-    public String getId() { return mId; }
+    public long getId() { return mId; }
     public String getTitle() { return mTitle; }
     public User getUser() { return mUser; }
     public String getWaveformUrl() { return mWaveformUrl; }
     public String getPermalinkUrl() { return mPermalinkUrl; }
     public float[] getWaveformData() { return mWaveformData; };
     public void setWaveformData(float[] _waveformData) { mWaveformData = _waveformData; }
+
+
 }

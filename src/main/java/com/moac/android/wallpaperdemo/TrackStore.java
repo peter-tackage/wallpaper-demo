@@ -37,9 +37,9 @@ public class TrackStore {
         }
     }
 
-    public void buildTrackModel(String _genre, int _offset) {
+    private void buildTrackModel(String _genre, int _offset) {
         Log.i(TAG, "buildTrackModel() genre: " + _genre);
-        mApi.getTrackList(_genre, _genre, _offset, new Callback<List<Track>>() {
+        mApi.getTracks(_genre, _genre, _offset, new Callback<List<Track>>() {
             @Override
             public void success(List<Track> tracks, Response response) {
                 Log.i(TAG, "Successfully retrieved tracks: " + tracks.size());

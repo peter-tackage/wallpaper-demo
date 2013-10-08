@@ -12,16 +12,17 @@ import java.util.concurrent.TimeUnit;
 
 public class ImageScheduler {
 
-    private final int DEFAULT_WAVEFORM_INTERVAL_SEC = 30;
+    private static final long DEFAULT_WAVEFORM_INTERVAL_SEC = 30;
 
     private static final String TAG = ImageScheduler.class.getSimpleName();
 
     private final Context mContext;
-    private final SchedulerListener mSchedulerListener;
+    private final ScheduleListener mScheduleListener;
     private Handler mHandler;
     private ImageDrawer mImageDrawer;
     private TrackStore mTrackStore;
     private Track mTrack;
+    private long mInterval;
 
     private final Runnable drawRunner = new Runnable() {
         @Override
@@ -31,21 +32,27 @@ public class ImageScheduler {
                 fetchNextImage();
             } finally {
                 // Retask
-                // FIXME - Seems a waste if interval is not dynamic.
                 mHandler.postDelayed(this,
-                  TimeUnit.MILLISECONDS.convert(DEFAULT_WAVEFORM_INTERVAL_SEC, TimeUnit.SECONDS));
+                  TimeUnit.MILLISECONDS.convert(mInterval, TimeUnit.SECONDS));
             }
         }
     };
     private long mPausedAt = 0;
     private long mScheduledFor = 0;
 
-    public ImageScheduler(Context _context, ImageDrawer _imageDrawer, TrackStore _trackStore, SchedulerListener _listener) {
+    public ImageScheduler(Context _context, ImageDrawer _imageDrawer,
+                          TrackStore _trackStore, ScheduleListener _listener) {
+        this(_context, _imageDrawer, _trackStore, _listener, DEFAULT_WAVEFORM_INTERVAL_SEC);
+    }
+
+    public ImageScheduler(Context _context, ImageDrawer _imageDrawer,
+                          TrackStore _trackStore, ScheduleListener _listener, long _interval) {
         mContext = _context;
         mHandler = new Handler();
-        mSchedulerListener = _listener;
+        mScheduleListener = _listener;
         mImageDrawer = _imageDrawer;
         mTrackStore = _trackStore;
+        mInterval = _interval;
     }
 
 //    // Define connectivity first.
@@ -72,7 +79,7 @@ public class ImageScheduler {
 
     public void start() {
         final long now = android.os.SystemClock.uptimeMillis();
-        final long interval = TimeUnit.MILLISECONDS.convert(DEFAULT_WAVEFORM_INTERVAL_SEC, TimeUnit.SECONDS);
+        final long interval = TimeUnit.MILLISECONDS.convert(mInterval, TimeUnit.SECONDS);
         long delay = 0;
         if(now - interval < mScheduledFor) {
             // Reschedule its original time to remain periodic
@@ -116,7 +123,7 @@ public class ImageScheduler {
                 float[] waveformData = mTransformer.transform(_imageContainer.getBitmap());
                 mWaveformTrack.setWaveformData(waveformData);    // FIXME Memory constraints?
                 // TODO Otto bus?
-                mSchedulerListener.onScheduleEvent();
+                mScheduleListener.onScheduleEvent();
             }
         }
 

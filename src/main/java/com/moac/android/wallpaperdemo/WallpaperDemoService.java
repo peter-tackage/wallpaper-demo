@@ -17,7 +17,7 @@ public class WallpaperDemoService extends WallpaperService {
         return new WallpaperEngine();
     }
 
-    protected class WallpaperEngine extends Engine implements SchedulerListener {
+    protected class WallpaperEngine extends Engine implements ScheduleListener {
 
         private long mLastCommandTime = 0; // would use for doubletap
         private ImageScheduler mImageScheduler;

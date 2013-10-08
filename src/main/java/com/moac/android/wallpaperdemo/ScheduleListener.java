@@ -1,6 +1,6 @@
 package com.moac.android.wallpaperdemo;
 
-public interface SchedulerListener {
+public interface ScheduleListener {
 
     public void onScheduleEvent();
 }
