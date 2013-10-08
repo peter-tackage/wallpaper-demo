@@ -9,14 +9,9 @@ import java.util.List;
 
 public interface SoundCloudApi {
     @GET("/tracks")
-    public List<Track> getTrackList(@Query("genre") String _genre,
-                                 @Query("tags") String _tags, @Query("offset") long _offset);
+    public void getTracks(@Query("genre") String _genre,
+                          @Query("tags") String _tags,
+                          @Query("offset") long _offset,
+                          Callback<List<Track>> _callback);
 
-    @GET("/tracks")
-    public void getTrackList(@Query("genre") String _genre,
-                                    @Query("tags") String _tags, @Query("offset") long _offset, Callback<List<Track>> _callback);
-
-    @GET("/tracks")
-    public Track getTrack(@Query("genre") String _genre,
-                                 @Query("tags") String _tags, @Query("offset") long _offset);
 }
