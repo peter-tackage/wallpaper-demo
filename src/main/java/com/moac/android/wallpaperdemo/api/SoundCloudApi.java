@@ -13,5 +13,4 @@ public interface SoundCloudApi {
                           @Query("tags") String _tags,
                           @Query("offset") long _offset,
                           Callback<List<Track>> _callback);
-
 }

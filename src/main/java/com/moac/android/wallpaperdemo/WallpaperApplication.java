@@ -70,7 +70,7 @@ public class WallpaperApplication extends Application {
             String clientId = getProperty(properties, "client.id");
             String format = getProperty(properties, "format");
 
-            Log.i(TAG, "createApiClient() - creating with format: " + format + " clientId: " + clientId + " API: " + apiScheme + apiDomain);
+            Log.i(TAG, "createApiClient() - creating with format: " + format + " clientId: " + clientId + " API: " + apiScheme + "://" + apiDomain);
 
             String apiUrl = new Uri.Builder().scheme(apiScheme).authority(apiDomain).toString();
 
@@ -98,7 +98,9 @@ public class WallpaperApplication extends Application {
         if(_stream != null) {
             try {
                 _stream.close();
-            } catch(IOException e) { } // ignore
+            } catch(IOException e) {
+                // ignore
+            }
         }
     }
 
