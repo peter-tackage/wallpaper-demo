@@ -115,7 +115,7 @@ public class WallpaperDemoService extends WallpaperService {
 
         public void drawImage() {
             Log.i(TAG, "drawImage() - start");
-            if(mCurrentTrack == null)
+            if(mCurrentTrack == null || mCurrentTrack.getWaveformData() == null)
                 return;
 
             final SurfaceHolder holder = getSurfaceHolder();
