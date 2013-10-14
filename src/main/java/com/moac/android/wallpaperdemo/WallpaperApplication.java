@@ -10,6 +10,7 @@ import com.android.volley.toolbox.Volley;
 import com.moac.android.wallpaperdemo.api.ScRequestInterceptor;
 import com.moac.android.wallpaperdemo.api.SoundCloudApi;
 import com.moac.android.wallpaperdemo.util.BitmapLruCache;
+import com.moac.android.wallpaperdemo.util.IOUtils;
 import retrofit.RequestInterceptor;
 import retrofit.RestAdapter;
 
@@ -90,17 +91,7 @@ public class WallpaperApplication extends Application {
             Log.e(TAG, "Failed to initialise SoundCloud API Client", e);
             throw new RuntimeException("Unable to initialise SoundCloud API");
         } finally {
-            closeQuietly(inputStream);
-        }
-    }
-
-    private void closeQuietly(InputStream _stream) {
-        if(_stream != null) {
-            try {
-                _stream.close();
-            } catch(IOException e) {
-                // ignore
-            }
+            IOUtils.closeQuietly(inputStream);
         }
     }
 
