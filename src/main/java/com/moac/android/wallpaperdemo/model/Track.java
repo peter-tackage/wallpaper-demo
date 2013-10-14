@@ -23,12 +23,13 @@ public class Track {
      * configure the deserialisation policy of the GSON instance .. or do you?)
      */
 
-    @SerializedName("id") protected long mId;
-    @SerializedName("title") protected String mTitle;
-    @SerializedName("user") protected User mUser;
-    @SerializedName("waveform_url") protected String mWaveformUrl;
-    @SerializedName("permalink_url") protected String mPermalinkUrl;
+    @SerializedName("id") private long mId;
+    @SerializedName("title") private String mTitle;
+    @SerializedName("user") private User mUser;
+    @SerializedName("waveform_url") private String mWaveformUrl;
+    @SerializedName("permalink_url") private String mPermalinkUrl;
 
+    // Calculated from Bitmap data
     protected float[] mWaveformData;
 
     public long getId() { return mId; }
@@ -38,6 +39,4 @@ public class Track {
     public String getPermalinkUrl() { return mPermalinkUrl; }
     public float[] getWaveformData() { return mWaveformData; };
     public void setWaveformData(float[] _waveformData) { mWaveformData = _waveformData; }
-
-
 }
