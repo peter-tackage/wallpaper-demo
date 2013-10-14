@@ -41,6 +41,7 @@ public class WallpaperDemoService extends WallpaperService {
             mTrackScheduler = new TrackScheduler(api, this, 30, TimeUnit.SECONDS);
             mTrackScheduler.setGenre("electronic");
             mImageDrawer = new ImageDrawer();
+            mImageDrawer.setColumns(120);
             mTrackScheduler.start();
         }
 
@@ -96,15 +97,13 @@ public class WallpaperDemoService extends WallpaperService {
 
         public void drawImage() {
             Log.i(TAG, "drawImage() - start");
-            if(mCurrentTrack == null || mCurrentTrack.getWaveformData() == null)
-                return;
 
             final SurfaceHolder holder = getSurfaceHolder();
             Canvas c = null;
             try {
                 c = holder.lockCanvas();
                 if(c != null) {
-                    mImageDrawer.drawOn(c, mCurrentTrack.getWaveformData(),  120);
+                    mImageDrawer.drawOn(c, mCurrentTrack);
                 }
             } finally {
                 if(c != null)

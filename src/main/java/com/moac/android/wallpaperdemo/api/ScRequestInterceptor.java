@@ -17,7 +17,7 @@ public class ScRequestInterceptor implements RequestInterceptor{
 
     @Override
     public void intercept(RequestFacade request) {
-        // Add client id and format type to request
+        // Add client id and response data format type to request
        request.addEncodedQueryParam(CLIENT_ID_PARAM, mClientId);
        request.addEncodedQueryParam(FORMAT_PARAM, mFormat);
     }

@@ -9,7 +9,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * TODO I feel like this is weird hybrid of an Executor and TimerTask
- * It's really a scheduler either, it's more of a Task that schedules itself.
+ * It's really npt a scheduler either, it's more of a Task that schedules itself.
  */
 public abstract class PeriodicExecutorScheduler implements Scheduler {
 
