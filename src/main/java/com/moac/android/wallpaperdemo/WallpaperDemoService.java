@@ -24,7 +24,7 @@ public class WallpaperDemoService extends WallpaperService {
 
     protected class WallpaperEngine extends Engine implements TrackListener {
 
-        private long mLastCommandTime = 0; // TODO use for doubletap
+        private long mLastCommandTime = 0;
         private TrackScheduler mTrackScheduler;
         private ImageDrawer mImageDrawer;
         private Track mCurrentTrack;
@@ -35,7 +35,7 @@ public class WallpaperDemoService extends WallpaperService {
             super.onCreate(surfaceHolder);
             setTouchEventsEnabled(true);
 
-            // Build the Track Scheduler
+            // Build the Track Scheduler, so we get track updates.
             Log.i(TAG, "Creating new WallpaperEngine instance");
             SoundCloudApi api = WallpaperApplication.getInstance().getSoundCloudApi();
             mTrackScheduler = new TrackScheduler(api, this, 30, TimeUnit.SECONDS);
@@ -67,27 +67,8 @@ public class WallpaperDemoService extends WallpaperService {
             super.onSurfaceChanged(holder, format, width, height);
             Log.d(TAG, "onSurfaceChanged() Current surface size: " + width + "," + height);
             // Draw the current image in accordance with the changes.
+            // This called on orientation change.
             drawImage();
-        }
-
-        @Override
-        public void onOffsetsChanged(float xOffset, float yOffset, float xStep,
-                                     float yStep, int xPixels, int yPixels) {
-            // Draw the current image in accordance with the changes.
-            Log.d(TAG, "onOffsetsChanged()");
-            drawImage();
-        }
-
-        public void openTrack(Track _track) {
-            if(_track != null
-              && _track.getPermalinkUrl() != null) {
-                Log.i(TAG, "openTrack() => Attempt to open track at: "
-                  + _track.getPermalinkUrl());
-                Uri uri = Uri.parse(_track.getPermalinkUrl());
-                Intent openIntent = new Intent(Intent.ACTION_VIEW, uri);
-                openIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                startActivity(openIntent);
-            }
         }
 
         @Override
@@ -130,6 +111,18 @@ public class WallpaperDemoService extends WallpaperService {
                     holder.unlockCanvasAndPost(c);
             }
             Log.i(TAG, "drawImage() - end");
+        }
+
+        public void openTrack(Track _track) {
+            if(_track != null
+              && _track.getPermalinkUrl() != null) {
+                Log.i(TAG, "openTrack() => Attempt to open track at: "
+                  + _track.getPermalinkUrl());
+                Uri uri = Uri.parse(_track.getPermalinkUrl());
+                Intent openIntent = new Intent(Intent.ACTION_VIEW, uri);
+                openIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(openIntent);
+            }
         }
     }
 }

@@ -54,8 +54,8 @@ public abstract class PeriodicExecutorScheduler implements Scheduler {
 
     @Override
     public void pause() {
+        // TODO Or possible just set a flag to not draw...
         Log.i(TAG, "Pausing Task");
-
         mFuture.cancel(false);
         long delay = mFuture.getDelay(mUnits);
         long now = mUnits.convert(android.os.SystemClock.uptimeMillis(), TimeUnit.MILLISECONDS);
