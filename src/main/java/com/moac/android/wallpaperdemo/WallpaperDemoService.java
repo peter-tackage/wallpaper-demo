@@ -15,6 +15,9 @@ import com.moac.android.wallpaperdemo.model.Track;
 import java.util.HashMap;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * TODO How to behave when the initial data load fails
+ */
 public class WallpaperDemoService extends WallpaperService {
 
     private static final String TAG = WallpaperDemoService.class.getSimpleName();
@@ -90,6 +93,7 @@ public class WallpaperDemoService extends WallpaperService {
                 public void run() {
                     Log.i(TAG, "PeriodicExecutorScheduler - running task!");
                     mCurrentTrack = mTrackStore.getRandomTrack();
+                    drawImage();
                 }
             }, 30, TimeUnit.SECONDS);
 
@@ -171,6 +175,7 @@ public class WallpaperDemoService extends WallpaperService {
         }
 
         private void drawPlaceholderOn(Canvas _canvas) {
+            Log.i(TAG, "drawPlaceholderOn() - start");
             _canvas.drawColor(BACKGROUND_COLOR);
             _canvas.drawText("Wallpaper Demo", _canvas.getWidth() / 2, _canvas.getHeight() / 2, TEXT_PAINT);
         }
