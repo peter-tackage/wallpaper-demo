@@ -9,7 +9,7 @@ public class Track {
      * the box with the existing FieldNamingPolicy strategies.
      *
      * A solution would be to write a FieldNamingStrategy to handle the "m"
-     * and then enforce camel case from the remainer of the String and configure
+     * and then enforce camel case from the remainder of the String and configure
      * the GSON builder to use this.
      *
      * The policy would be a bit like -
@@ -33,10 +33,20 @@ public class Track {
     protected float[] mWaveformData;
 
     public long getId() { return mId; }
+
     public String getTitle() { return mTitle; }
+
     public User getUser() { return mUser; }
+
     public String getWaveformUrl() { return mWaveformUrl; }
+
     public String getPermalinkUrl() { return mPermalinkUrl; }
-    public float[] getWaveformData() { return mWaveformData; };
-    public void setWaveformData(float[] _waveformData) { mWaveformData = _waveformData; }
+
+    public float[] getWaveformData() { return mWaveformData; }
+
+    ;
+
+    public void setWaveformData(float[] _waveformData) {
+        mWaveformData = _waveformData;
+    }
 }

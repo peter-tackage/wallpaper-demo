@@ -3,20 +3,21 @@ package com.moac.android.wallpaperdemo;
 import android.app.Application;
 import android.net.Uri;
 import android.util.Log;
-
 import com.android.volley.RequestQueue;
 import com.android.volley.toolbox.ImageLoader;
 import com.android.volley.toolbox.Volley;
 import com.moac.android.wallpaperdemo.api.ScRequestInterceptor;
 import com.moac.android.wallpaperdemo.api.SoundCloudApi;
 import com.moac.android.wallpaperdemo.util.BitmapLruCache;
-import com.moac.android.wallpaperdemo.util.IOUtils;
 import retrofit.RequestInterceptor;
 import retrofit.RestAdapter;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
+
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.io.Closeables.closeQuietly;
 
 public class WallpaperApplication extends Application {
 
@@ -38,8 +39,56 @@ public class WallpaperApplication extends Application {
     public void onCreate() {
         Log.d(TAG, "onCreate() - start");
         super.onCreate();
+        //   applicationGraph = ObjectGraph.create(getModules().toArray());
         mImageLoader = createImageLoader();
         mSoundCloudApi = createApiClient();
+    }
+
+    private ImageLoader createImageLoader() {
+        Log.i(TAG, "createImageLoader() - start");
+        RequestQueue rq = Volley.newRequestQueue(getApplicationContext());
+        /**
+         * FIXME Cache size relates to track response count & image size
+         *
+         * If this cache is too small then waveform requests will periodical
+         * use bandwidth rather than hitting the cache.
+         */
+        return new ImageLoader(rq, new BitmapLruCache());
+    }
+
+    private SoundCloudApi createApiClient() {
+        InputStream inputStream = null;
+        try {
+            inputStream = getApplicationContext().getAssets().open("soundcloud.properties");
+            Properties properties = new Properties();
+            properties.load(inputStream);
+
+            // Get and validate required API properties
+            String scheme = checkNotNull(properties.getProperty("host.scheme"));
+            String domain = checkNotNull(properties.getProperty("host.domain"));
+            String clientId = checkNotNull(properties.getProperty("client.id"));
+            String format = checkNotNull(properties.getProperty("format"));
+
+            String apiUrl = new Uri.Builder().scheme(scheme).authority(domain).toString();
+
+            // Add client id and format to query string for every request.
+            RequestInterceptor ri = new ScRequestInterceptor(clientId, format);
+
+            // Uses GSON mapping by default.
+            RestAdapter restAdapter = new RestAdapter.Builder()
+              .setServer(apiUrl)
+              .setRequestInterceptor(ri)
+              .setLogLevel(RestAdapter.LogLevel.FULL)
+              .build();
+
+            // Create an instance of the SoundCloud API interface
+            return restAdapter.create(SoundCloudApi.class);
+        } catch(IOException e) {
+            Log.e(TAG, "Failed to read application properties");
+            throw new RuntimeException(e);
+        } finally {
+            closeQuietly(inputStream);
+        }
     }
 
     public static WallpaperApplication getInstance() { return sInstance; }
@@ -48,61 +97,11 @@ public class WallpaperApplication extends Application {
 
     public ImageLoader getImageLoader() { return mImageLoader; }
 
-    private ImageLoader createImageLoader() {
-        Log.i(TAG, "createImageLoader() - start");
-        RequestQueue rq = Volley.newRequestQueue(getApplicationContext());
-        return new ImageLoader(rq, new BitmapLruCache());
-    }
+//    protected List<Object> getModules() {
+//        return Arrays.<Object>asList(new AndroidModule(this), new ApiModule());
+//    }
 
-    private SoundCloudApi createApiClient() {
-        Log.i(TAG, "createApiClient() - start");
-
-        InputStream inputStream = null;
-        try {
-
-            // Define SoundCloud API properties
-            inputStream = getAssets().open("soundcloud.properties");
-            Properties properties = new Properties();
-            properties.load(inputStream);
-
-            // Get and validate required API properties
-            String apiScheme = getProperty(properties, "host.scheme");
-            String apiDomain = getProperty(properties, "host.domain");
-            String clientId = getProperty(properties, "client.id");
-            String format = getProperty(properties, "format");
-
-            Log.i(TAG, "createApiClient() - creating with format: " + format + " clientId: " + clientId + " API: " + apiScheme + "://" + apiDomain);
-
-            String apiUrl = new Uri.Builder().scheme(apiScheme).authority(apiDomain).toString();
-
-            // Add client id and format to query string for every request.
-            RequestInterceptor ri = new ScRequestInterceptor(clientId, format);
-
-            // Uses GSON JSON mapping by default.
-            RestAdapter restAdapter = new RestAdapter.Builder()
-              .setServer(apiUrl)
-              .setRequestInterceptor(ri)
-              .setLogLevel(RestAdapter.LogLevel.BASIC)
-              .build();
-
-            // Create an instance of the SoundCloud API interface
-            return restAdapter.create(SoundCloudApi.class);
-        } catch(IOException e) {
-            Log.e(TAG, "Failed to initialise SoundCloud API Client", e);
-            throw new RuntimeException("Unable to initialise SoundCloud API");
-        } finally {
-            IOUtils.closeQuietly(inputStream);
-        }
-    }
-
-    private static String getProperty(Properties _properties, String _name) {
-        String prop = _properties.getProperty(_name);
-        validateNotNullorEmpty(prop, _name);
-        return prop;
-    }
-
-    private static void validateNotNullorEmpty(String _value, String _name) {
-        if(_value == null || _value.isEmpty())
-            throw new IllegalArgumentException("Required parameter does not exist: " + _name);
-    }
+    //  ObjectGraph getApplicationGraph() {
+    //      return applicationGraph;
+    //  }
 }

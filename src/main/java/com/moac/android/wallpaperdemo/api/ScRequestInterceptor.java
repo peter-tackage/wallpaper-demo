@@ -2,7 +2,7 @@ package com.moac.android.wallpaperdemo.api;
 
 import retrofit.RequestInterceptor;
 
-public class ScRequestInterceptor implements RequestInterceptor{
+public class ScRequestInterceptor implements RequestInterceptor {
 
     public static final String CLIENT_ID_PARAM = "client_id";
     public static final String FORMAT_PARAM = "format";
@@ -18,7 +18,7 @@ public class ScRequestInterceptor implements RequestInterceptor{
     @Override
     public void intercept(RequestFacade request) {
         // Add client id and response data format type to request
-       request.addEncodedQueryParam(CLIENT_ID_PARAM, mClientId);
-       request.addEncodedQueryParam(FORMAT_PARAM, mFormat);
+        request.addEncodedQueryParam(CLIENT_ID_PARAM, mClientId);
+        request.addEncodedQueryParam(FORMAT_PARAM, mFormat);
     }
 }

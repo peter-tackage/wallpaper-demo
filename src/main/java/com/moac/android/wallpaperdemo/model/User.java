@@ -9,6 +9,8 @@ public class User {
     @SerializedName("uri") protected String mUri;
 
     public String getId() { return mId; }
+
     public String getUsername() { return mUsername; }
+
     public String getUri() { return mUri; }
 }

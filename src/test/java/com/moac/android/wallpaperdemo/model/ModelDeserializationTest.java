@@ -3,7 +3,6 @@ package com.moac.android.wallpaperdemo.model;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
-import com.moac.android.wallpaperdemo.util.IOUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -17,6 +16,7 @@ import java.io.InputStreamReader;
 import java.lang.reflect.Type;
 import java.util.List;
 
+import static com.google.common.io.Closeables.closeQuietly;
 import static org.hamcrest.core.IsEqual.equalTo;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
@@ -83,7 +83,7 @@ public class ModelDeserializationTest {
         } catch(IOException ex) {
             throw new RuntimeException("Test data file could not be read: " + _filename, ex);
         }  finally {
-            IOUtils.closeQuietly(inputStream);
+            closeQuietly(inputStream);
         }
     }
 }
