@@ -27,24 +27,23 @@ public class TrackDrawer {
 
         final float[] waveform = _track.getWaveformData();
 
-        /**
-         * If we have a Track, but the waveform is null, don't bother updating.
-         *
-         * This could occur if there is a failure to retrieve the track's
-         * image or if the image processing somehow failed.
-         */
-        if(waveform != null) {
-            Log.v(TAG, "drawOn() - data width: " + waveform.length + " columns:" + mColumns);
+        // I don't think this can happen (see TrackStore conditions for a "ready" track)
+        if(waveform == null) {
+            Log.w(TAG, "Track contains empty waveform: " + _track.getId());
+            return;
+        }
 
-            _canvas.drawPaint(mBackgroundPaint);
+        Log.v(TAG, "drawOn() - data width: " + waveform.length + " columns:" + mColumns);
 
-            final int columnIndexFactor = waveform.length / mColumns;
-            final int columnWidth = _canvas.getWidth() / mColumns;
-            final int heightScalingFactor = _canvas.getHeight() / 2;
-            final int centreLine = _canvas.getHeight() / 2;
+        _canvas.drawPaint(mBackgroundPaint);
 
-            float left = 0;
-            float right = left + columnWidth;
+        final int columnIndexFactor = waveform.length / mColumns;
+        final int columnWidth = _canvas.getWidth() / mColumns;
+        final int heightScalingFactor = _canvas.getHeight() / 2;
+        final int centreLine = _canvas.getHeight() / 2;
+
+        float left = 0;
+        float right = left + columnWidth;
 
 //            // FIXME This only varies when the dimensions change
 //            LinearGradient gradient = new LinearGradient(
@@ -55,23 +54,22 @@ public class TrackDrawer {
 //              0xFFFF8500, 0xFFFF1009,
 //              android.graphics.Shader.TileMode.MIRROR);
 
-            for(int i = 0; i < mColumns; i++) {
-                Log.v(TAG, "drawOn() - drawing column: " + i);
-                Log.v(TAG, "drawOn() - waveform value: " + waveform[i * columnIndexFactor]);
-                float columnLength = waveform[i * columnIndexFactor] * heightScalingFactor;
-                float top = centreLine - (columnLength / 2);
-                float bottom = top + columnLength;
+        for(int i = 0; i < mColumns; i++) {
+            Log.v(TAG, "drawOn() - drawing column: " + i);
+            Log.v(TAG, "drawOn() - waveform value: " + waveform[i * columnIndexFactor]);
+            float columnLength = waveform[i * columnIndexFactor] * heightScalingFactor;
+            float top = centreLine - (columnLength / 2);
+            float bottom = top + columnLength;
 
-                Log.v(TAG, "drawOn() - left: " + left + " right: " + right + " top: " + top + " bottom: " + bottom);
+            Log.v(TAG, "drawOn() - left: " + left + " right: " + right + " top: " + top + " bottom: " + bottom);
 
 //                Paint p = new Paint();
 //                p.setDither(true);
 //                p.setShader(gradient);
 
-                _canvas.drawRect(left, top, right, bottom, mWaveformPaint);
-                left = right + mColumnGap;
-                right = left + columnWidth;
-            }
+            _canvas.drawRect(left, top, right, bottom, mWaveformPaint);
+            left = right + mColumnGap;
+            right = left + columnWidth;
         }
     }
 }
