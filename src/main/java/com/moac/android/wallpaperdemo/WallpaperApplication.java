@@ -47,12 +47,6 @@ public class WallpaperApplication extends Application {
     private ImageLoader createImageLoader() {
         Log.i(TAG, "createImageLoader() - start");
         RequestQueue rq = Volley.newRequestQueue(getApplicationContext());
-        /**
-         * FIXME Cache size relates to track response count & image size
-         *
-         * If this cache is too small then waveform requests will periodical
-         * use bandwidth rather than hitting the cache.
-         */
         return new ImageLoader(rq, new BitmapLruCache());
     }
 

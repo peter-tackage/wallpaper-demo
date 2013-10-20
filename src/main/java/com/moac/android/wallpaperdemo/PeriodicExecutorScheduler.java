@@ -43,7 +43,7 @@ public class PeriodicExecutorScheduler implements Scheduler {
         long delay = now < mScheduledFor ? mScheduledFor - now : 0;
 
         mFuture =
-          mScheduler.scheduleAtFixedRate(mRunnable, delay, mPeriod, mUnits);
+          mScheduler.scheduleWithFixedDelay(mRunnable, delay, mPeriod, mUnits);
     }
 
     @Override
@@ -55,6 +55,11 @@ public class PeriodicExecutorScheduler implements Scheduler {
         long now = mUnits.convert(android.os.SystemClock.uptimeMillis(), TimeUnit.MILLISECONDS);
         mScheduledFor = now + delay;
         Log.i(TAG, "pause() - was scheduledFor: " + mScheduledFor);
+    }
+
+    @Override
+    public void resume() {
+        // TODO
     }
 
     @Override

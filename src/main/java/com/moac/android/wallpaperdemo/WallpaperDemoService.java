@@ -71,7 +71,7 @@ public class WallpaperDemoService extends WallpaperService {
 
         private long mLastCommandTime = 0;
         private TrackStore mTrackStore;
-        private PeriodicExecutorScheduler mTrackScheduler;
+        private Scheduler mScheduler;
         private TrackDrawer mTrackDrawer;
         private Track mCurrentTrack;
 
@@ -88,11 +88,10 @@ public class WallpaperDemoService extends WallpaperService {
               DEFAULT_COLUMN_COUNT, DEFAULT_COLUMN_GAP_WIDTH_DIP);
 
             // Configure the Track Scheduler
-            mTrackScheduler = new PeriodicExecutorScheduler(new Runnable() {
+            mScheduler = new PeriodicHandlerScheduler(new Runnable() {
                 @Override
                 public void run() {
-                    Log.i(TAG, "PeriodicExecutorScheduler - running task!");
-                    mCurrentTrack = mTrackStore.getRandomTrack();
+                    mCurrentTrack = mTrackStore.getTrack();
                     drawImage();
                 }
             }, 30, TimeUnit.SECONDS);
@@ -104,7 +103,7 @@ public class WallpaperDemoService extends WallpaperService {
               new TrackStore.InitListener() {
                   @Override
                   public void isReady() {
-                      mTrackScheduler.start();
+                      mScheduler.start();
                   }
               }, new HashMap<String, String>());
         }
@@ -112,7 +111,7 @@ public class WallpaperDemoService extends WallpaperService {
         @Override
         public void onDestroy() {
             Log.d(TAG, "onDestroy()");
-            mTrackScheduler.stop();
+            mScheduler.stop();
             // TODO Stop the TrackStore from requesting/processing updates.
             super.onDestroy();
         }
@@ -120,10 +119,10 @@ public class WallpaperDemoService extends WallpaperService {
         @Override
         public void onVisibilityChanged(boolean _isVisible) {
             Log.d(TAG, "onVisibilityChanged() isVisible: " + _isVisible);
-            if(_isVisible) {
-                mTrackScheduler.start();
+            if(!_isVisible) {
+                mScheduler.pause();
             } else {
-                mTrackScheduler.pause();
+                mScheduler.resume();
             }
         }
 

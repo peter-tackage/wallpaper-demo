@@ -27,8 +27,8 @@ public class TrackDrawer {
 
         final float[] waveform = _track.getWaveformData();
 
-        // I don't think this can happen (see TrackStore conditions for a "ready" track)
-        if(waveform == null) {
+        // Don't draw on Canvas if we haven't got anything to draw!
+        if(waveform == null || waveform.length == 0) {
             Log.w(TAG, "Track contains empty waveform: " + _track.getId());
             return;
         }
