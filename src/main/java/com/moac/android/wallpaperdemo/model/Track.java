@@ -44,8 +44,6 @@ public class Track {
 
     public float[] getWaveformData() { return mWaveformData; }
 
-    ;
-
     public void setWaveformData(float[] _waveformData) {
         mWaveformData = _waveformData;
     }

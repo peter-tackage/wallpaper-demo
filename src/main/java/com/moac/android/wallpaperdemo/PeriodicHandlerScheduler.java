@@ -5,16 +5,15 @@ import android.util.Log;
 
 import java.util.concurrent.TimeUnit;
 
-/**
- * This is strictly periodic when pausing.
- *
+/** *
  * Good things about this approach -
  *
  * 1. Simple! No messy calculations about when the next task should be due
  * 2. Performance - No forced action when unpausing due to "catching up" on updates
- * 3. Schedule with fixed delay is performed.
+ * 3. Schedule with fixed delay is performed - no bunching up of requests.
  *
  * Bad things -
+ *
  * 1. Not thread safe - only one thread can control it.
  * 2. Handler is always posted a Runnable, even when paused, it just does no real work.
  */
@@ -45,8 +44,10 @@ public class PeriodicHandlerScheduler implements Scheduler {
     @Override
     public void start() {
         Log.i(TAG, "Starting Schedule");
-        if(!mIsStarted)
+        if(!mIsStarted) {
+            mHandler.removeCallbacks(mRunnable);
             mIsStarted = mHandler.post(mRunnable);
+        }
     }
 
     @Override

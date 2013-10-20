@@ -11,14 +11,16 @@ public class TrackDrawer {
 
     private static final String TAG = TrackDrawer.class.getSimpleName();
 
-    private final Paint mWaveformPaint;
     private final Paint mBackgroundPaint;
+    private final Paint mWaveformPaint;
+    private final Paint mTextPaint;
     private final int mColumns;
     private final int mColumnGap;
 
-    public TrackDrawer(Paint _waveformPaint, Paint _backgroundPaint, int _columns, int _columnGap) {
-        mWaveformPaint = _waveformPaint;
+    public TrackDrawer(Paint _backgroundPaint, Paint _waveformPaint, Paint _textPaint, int _columns, int _columnGap) {
         mBackgroundPaint = _backgroundPaint;
+        mWaveformPaint = _waveformPaint;
+        mTextPaint = _textPaint;
         mColumns = _columns;
         mColumnGap = _columnGap;
     }
@@ -39,8 +41,10 @@ public class TrackDrawer {
 
         final int columnIndexFactor = waveform.length / mColumns;
         final int columnWidth = _canvas.getWidth() / mColumns;
+        // How much of the display should be used up.
         final int heightScalingFactor = _canvas.getHeight() / 2;
         final int centreLine = _canvas.getHeight() / 2;
+        final int centreWidth = _canvas.getWidth() / 2;
 
         float left = 0;
         float right = left + columnWidth;
@@ -71,5 +75,10 @@ public class TrackDrawer {
             left = right + mColumnGap;
             right = left + columnWidth;
         }
+
+        // Display track text below waveform with small buffer
+        String title = _track.getTitle();
+        mTextPaint.setTextAlign(Paint.Align.CENTER);
+        _canvas.drawText(title, centreWidth, centreLine + (heightScalingFactor /2) + 10, mTextPaint);
     }
 }

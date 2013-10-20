@@ -31,8 +31,7 @@ import java.util.*;
  * The cache used by Volley is reasonably large and will probably
  * eliminate bandwidth usage once these initial requests have completed.
  *
- * I average a lot of the data by massively undersampling the bitmap;
- * there's no need for high quality images.
+ * I visually undersample the bitmap in the TrackDrawer - there's no need for high quality images.
  *
  * TODO Build requests into smaller batches to balance tradeoffs.
  * TODO Find out if I can request low quality waveform images
@@ -81,8 +80,7 @@ public class TrackStore {
 
         // Cancel requests and reset state.
         cancelPendingRequests();
-        mPendingRequests = new HashMap<String, ImageLoader.ImageContainer>();
-        mTracks = new ArrayList<Track>();
+        mTracks.clear();
 
         logTrackState("initTrackModel()");
 
@@ -187,11 +185,16 @@ public class TrackStore {
         }
     }
 
+    public void onDestroy() {
+        cancelPendingRequests();
+    }
+
     private void cancelPendingRequests() {
         logTrackState("cancelPendingRequests");
         for(ImageLoader.ImageContainer request : mPendingRequests.values()) {
             request.cancelRequest();
         }
+        mPendingRequests.clear();
     }
 
     private void logTrackState(String at) {
@@ -207,4 +210,5 @@ public class TrackStore {
         Log.i(TAG, at + " - ready tracks: " + (readyTracks == null ? 0 : Iterables.size(readyTracks)));
         Log.i(TAG, at + " - total tracks: " + (mTracks == null ? 0 : mTracks.size()));
     }
+
 }

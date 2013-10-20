@@ -40,7 +40,7 @@ public class WallpaperDemoService extends WallpaperService {
         WAVEFORM_PAINT.setDither(true);
         WAVEFORM_PAINT.setAntiAlias(true);
         WAVEFORM_PAINT.setFilterBitmap(true);
-        WAVEFORM_PAINT.setColor(Color.WHITE);
+        WAVEFORM_PAINT.setColor(Color.LTGRAY);
     }
 
     private static final int BACKGROUND_COLOR = Color.DKGRAY;
@@ -84,7 +84,7 @@ public class WallpaperDemoService extends WallpaperService {
             Log.i(TAG, "Creating new WallpaperEngine instance");
 
             // Configure the TrackDrawer
-            mTrackDrawer = new TrackDrawer(BACKGROUND_PAINT, WAVEFORM_PAINT,
+            mTrackDrawer = new TrackDrawer(BACKGROUND_PAINT, WAVEFORM_PAINT, TEXT_PAINT,
               DEFAULT_COLUMN_COUNT, DEFAULT_COLUMN_GAP_WIDTH_DIP);
 
             // Configure the Track Scheduler
@@ -113,6 +113,7 @@ public class WallpaperDemoService extends WallpaperService {
             Log.d(TAG, "onDestroy()");
             mScheduler.stop();
             // TODO Stop the TrackStore from requesting/processing updates.
+            mTrackStore.onDestroy();
             super.onDestroy();
         }
 
