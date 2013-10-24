@@ -2,10 +2,9 @@ package com.moac.android.wallpaperdemo;
 
 import android.content.Context;
 import android.graphics.Bitmap;
+import android.graphics.drawable.Drawable;
 import android.util.Log;
-import com.android.volley.NetworkError;
-import com.android.volley.TimeoutError;
-import com.android.volley.toolbox.ImageLoader;
+
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.moac.android.wallpaperdemo.api.CancelableCallback;
@@ -157,8 +156,8 @@ public class TrackStore {
         }
 
         @Override
-        public void onSuccess(Bitmap bitmap) {
-            Log.i(TAG, "onSuccess() - extracting waveform data");
+        public void onBitmapLoaded(Bitmap bitmap, Picasso.LoadedFrom loadedFrom) {
+            Log.i(TAG, "onBitmapLoaded() - extracting waveform data");
             mIncompleteRequests.remove(mWaveformTrack.getWaveformUrl());
 
             // Assign the transformed waveform data
@@ -167,15 +166,19 @@ public class TrackStore {
             mTracks.add(mWaveformTrack);
             mListener.isReady();
 
-            logTrackState("onResponse() post");
+            logTrackState("onBitmapLoaded() post");
         }
 
         @Override
-        public void onError() {
+        public void onBitmapFailed(Drawable drawable) {
             Log.w(TAG, "onError()");
             mIncompleteRequests.remove(mWaveformTrack.getWaveformUrl());
             mTracks.remove(mWaveformTrack);
-            logTrackState("onError() post");
+            logTrackState("onError() post");        }
+
+        @Override
+        public void onPrepareLoad(Drawable drawable) {
+            //To change body of implemented methods use File | Settings | File Templates.
         }
     }
 

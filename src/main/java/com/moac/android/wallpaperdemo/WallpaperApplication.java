@@ -3,12 +3,9 @@ package com.moac.android.wallpaperdemo;
 import android.app.Application;
 import android.net.Uri;
 import android.util.Log;
-import com.android.volley.RequestQueue;
-import com.android.volley.toolbox.ImageLoader;
-import com.android.volley.toolbox.Volley;
+
 import com.moac.android.wallpaperdemo.api.ScRequestInterceptor;
 import com.moac.android.wallpaperdemo.api.SoundCloudApi;
-import com.moac.android.wallpaperdemo.util.BitmapLruCache;
 import retrofit.RequestInterceptor;
 import retrofit.RestAdapter;
 
@@ -25,7 +22,6 @@ public class WallpaperApplication extends Application {
 
     private static WallpaperApplication sInstance;
 
-    private ImageLoader mImageLoader;
     private SoundCloudApi mSoundCloudApi;
 
     public WallpaperApplication() {
@@ -40,14 +36,7 @@ public class WallpaperApplication extends Application {
         Log.d(TAG, "onCreate() - start");
         super.onCreate();
         //   applicationGraph = ObjectGraph.create(getModules().toArray());
-        mImageLoader = createImageLoader();
         mSoundCloudApi = createApiClient();
-    }
-
-    private ImageLoader createImageLoader() {
-        Log.i(TAG, "createImageLoader() - start");
-        RequestQueue rq = Volley.newRequestQueue(getApplicationContext());
-        return new ImageLoader(rq, new BitmapLruCache());
     }
 
     private SoundCloudApi createApiClient() {
@@ -88,8 +77,6 @@ public class WallpaperApplication extends Application {
     public static WallpaperApplication getInstance() { return sInstance; }
 
     public SoundCloudApi getSoundCloudApi() { return mSoundCloudApi; }
-
-    public ImageLoader getImageLoader() { return mImageLoader; }
 
 //    protected List<Object> getModules() {
 //        return Arrays.<Object>asList(new AndroidModule(this), new ApiModule());

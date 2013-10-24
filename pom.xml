@@ -17,7 +17,7 @@
     <google-guava.version>12.0</google-guava.version>
     <square-retrofit.version>1.2.2</square-retrofit.version>
     <square-dagger.version>1.1.0</square-dagger.version>
-    <square-picasso.version>1.1.1</square-picasso.version>
+    <square-picasso.version>2.1.1</square-picasso.version>
     <rxjava-version>0.14.1</rxjava-version>
     <junit4.version>4.11</junit4.version>
   </properties>
