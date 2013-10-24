@@ -7,8 +7,11 @@ import com.android.volley.VolleyError;
 import com.android.volley.toolbox.ImageLoader;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
+import com.moac.android.wallpaperdemo.api.CancelableCallback;
+import com.moac.android.wallpaperdemo.api.QueryMap;
 import com.moac.android.wallpaperdemo.api.SoundCloudApi;
 import com.moac.android.wallpaperdemo.model.Track;
+import com.moac.android.wallpaperdemo.util.NumberUtils;
 import retrofit.Callback;
 import retrofit.RetrofitError;
 import retrofit.client.Response;
@@ -18,7 +21,7 @@ import java.util.*;
 /**
  * This class makes tradeoffs between initial bandwidth usage & battery usage.
  *
- * This naive implementation is biased in favour of preserving
+ * This implementation is biased in favour of preserving
  * battery life by attempting to fetch all returned images in
  * one sequence, so the bandwidth used it only limited by the API's
  * response paging (number of tracks) and the size of the images.
@@ -39,10 +42,20 @@ import java.util.*;
  * TODO Make body of Callback cancelable (extend with cancel() method)
  * TODO Image transform should not be on the main thread.
  * TODO What happens when this fail to retrieve anything???
+ * TODO Check about removing pending requests.
+ * TODO Remove non 2.1 compliant Volley
  *
  * FIXME Remove usage of Google Guava's pseudo functional approach
  */
 public class TrackStore {
+
+    //    // Define connectivity first.
+//    ConnectivityManager connMgr = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+//    boolean isDataAllowed = connMgr.getBackgroundDataSetting();
+//    // ICS will only ever return true for getBackgroundDataSetting().
+//    // Apparently uses getActiveNetworkInfo
+//    boolean ICSDataAllowed = connMgr.getActiveNetworkInfo() != null
+//      && connMgr.getActiveNetworkInfo().isAvailable();
 
     private static final String TAG = TrackStore.class.getSimpleName();
 
@@ -53,20 +66,18 @@ public class TrackStore {
     private final SoundCloudApi mApi;
 
     private final ImageLoader mImageLoader;
-    private Map<String, String> mFilter;
     private InitListener mListener;
     private List<Track> mTracks;
-    private Map<String, ImageLoader.ImageContainer> mPendingRequests;
+    private Map<String, ImageLoader.ImageContainer> mIncompleteRequests;
 
     public TrackStore(SoundCloudApi api, ImageLoader _imageLoader,
-                      InitListener listener, Map<String, String> _filter) {
+                      InitListener _listener) {
         mApi = api;
         mImageLoader = _imageLoader;
-        mFilter = _filter;
-        mListener = listener;
+        mListener = _listener;
 
         // Move this to somewhere better
-        mPendingRequests = new HashMap<String, ImageLoader.ImageContainer>();
+        mIncompleteRequests = new HashMap<String, ImageLoader.ImageContainer>();
         mTracks = new ArrayList<Track>();
 
         initTrackModel();
@@ -76,7 +87,7 @@ public class TrackStore {
      * Invoked on start up and modification of key parameters.
      */
     private void initTrackModel() {
-        Log.i(TAG, "initTrackModel() genre: " + mFilter);
+        Log.i(TAG, "initTrackModel()");
 
         // Cancel requests and reset state.
         cancelPendingRequests();
@@ -84,14 +95,14 @@ public class TrackStore {
 
         logTrackState("initTrackModel()");
 
-        mApi.getTracks("electronic", "electronic", 0, new Callback<List<Track>>() {
+        mApi.getTracks("electronic", 10, new CancelableCallback<List<Track>>(new Callback<List<Track>>() {
             @Override
             public void success(List<Track> tracks, Response response) {
                 Log.i(TAG, "Successfully retrieved tracks: " + tracks.size());
                 mTracks = tracks;
                 for(Track track : mTracks) {
                     Log.i(TAG, "success() - will get waveform URL: " + track.getWaveformUrl());
-                    mPendingRequests.put(track.getWaveformUrl(), mImageLoader.get(track.getWaveformUrl(),
+                    mIncompleteRequests.put(track.getWaveformUrl(), mImageLoader.get(track.getWaveformUrl(),
                       new WaveformResponseListener(new WaveformProcessor(), track)));
                 }
                 logTrackState("success()");
@@ -102,17 +113,7 @@ public class TrackStore {
                 Log.w(TAG, "Failed to retrieve tracks", error);
                 mTracks = new ArrayList<Track>();
             }
-        });
-    }
-
-    public boolean isReady() {
-        Iterable<Track> readyTracks = Iterables.filter(mTracks, new Predicate<Track>() {
-            @Override
-            public boolean apply(Track track) {
-                return track.getWaveformData() != null;
-            }
-        });
-        return Iterables.size(readyTracks) > 0;
+        }));
     }
 
     public Track getTrack() {
@@ -127,12 +128,7 @@ public class TrackStore {
         Track[] tracks = Iterables.toArray(readyTracks, Track.class);
         if(tracks.length == 0)
             return null;
-        if(tracks.length == 1) // FIXME Really?
-            return tracks[0];
-
-        Random random = new Random();
-        int index = random.nextInt(tracks.length - 1);
-        return tracks[index];
+        return NumberUtils.getRandomElement(mTracks);
     }
 
     private class WaveformResponseListener implements ImageLoader.ImageListener {
@@ -148,14 +144,10 @@ public class TrackStore {
         @Override
         public void onResponse(ImageLoader.ImageContainer _imageContainer, boolean _isImmediate) {
             Log.i(TAG, "onResponse() - isImmediate: " + _isImmediate);
-            if(!_isImmediate) {
-                Log.i(TAG, "onResponse() - ##### HIT THE NETWORK ####");
-            }
 
             if(_imageContainer.getBitmap() != null) {
                 Log.i(TAG, "onResponse() - extracting waveform data");
-                // Is now finished
-                mPendingRequests.remove(mWaveformTrack.getWaveformUrl());
+                mIncompleteRequests.remove(mWaveformTrack.getWaveformUrl());
                 float[] waveformData = mTransformer.transform(_imageContainer.getBitmap());
                 mWaveformTrack.setWaveformData(waveformData);  // FIXME Memory constraints?
                 mListener.isReady();
@@ -176,7 +168,7 @@ public class TrackStore {
             if(!(_volleyError instanceof NetworkError || _volleyError instanceof TimeoutError)) {
                 Log.w(TAG, "Removing waveform request from list due to permanent error: "
                   + mWaveformTrack.getWaveformUrl(), _volleyError);
-                mPendingRequests.remove(mWaveformTrack.getWaveformUrl());
+                mIncompleteRequests.remove(mWaveformTrack.getWaveformUrl());
                 // FIXME This can result in concurrentmodiicationexception
                 mTracks.remove(mWaveformTrack);
                 Log.i(TAG, "onErrorResponse() - selecting from: " + mTracks.size() + " tracks");
@@ -191,10 +183,10 @@ public class TrackStore {
 
     private void cancelPendingRequests() {
         logTrackState("cancelPendingRequests");
-        for(ImageLoader.ImageContainer request : mPendingRequests.values()) {
+        for(ImageLoader.ImageContainer request : mIncompleteRequests.values()) {
             request.cancelRequest();
         }
-        mPendingRequests.clear();
+        mIncompleteRequests.clear();
     }
 
     private void logTrackState(String at) {
@@ -206,9 +198,8 @@ public class TrackStore {
             }
         });
 
-        Log.i(TAG, at + " - pending requests: " + (mPendingRequests == null ? 0 : mPendingRequests.size()));
+        Log.i(TAG, at + " - pending requests: " + (mIncompleteRequests == null ? 0 : mIncompleteRequests.size()));
         Log.i(TAG, at + " - ready tracks: " + (readyTracks == null ? 0 : Iterables.size(readyTracks)));
         Log.i(TAG, at + " - total tracks: " + (mTracks == null ? 0 : mTracks.size()));
     }
-
 }

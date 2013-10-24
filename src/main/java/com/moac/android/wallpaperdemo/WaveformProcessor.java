@@ -26,7 +26,7 @@ public class WaveformProcessor implements BitmapProcessor {
                         Log.v(TAG, "transform() - found transparent pixel: " + x + "/" + y);
                     normalizedAmplitude[x] = (centreLine - y) / centreLine;
                     if(DEBUG)
-                        Log.v(TAG, "normalised amp for x: " + x + " is: " + normalizedAmplitude[x]);
+                        Log.v(TAG, "transform() - normalised amp for x: " + x + " is: " + normalizedAmplitude[x]);
                     break; // next sample in x.
                 }
             }

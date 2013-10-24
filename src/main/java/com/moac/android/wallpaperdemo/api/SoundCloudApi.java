@@ -10,7 +10,6 @@ import java.util.List;
 public interface SoundCloudApi {
     @GET("/tracks")
     public void getTracks(@Query("genre") String _genre,
-                          @Query("tags") String _tags,
-                          @Query("offset") long _offset,
+                          @Query("limit") long _limit,
                           Callback<List<Track>> _callback);
 }

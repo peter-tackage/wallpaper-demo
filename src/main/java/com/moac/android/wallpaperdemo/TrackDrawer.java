@@ -2,7 +2,6 @@ package com.moac.android.wallpaperdemo;
 
 import android.graphics.Canvas;
 import android.graphics.Color;
-import android.graphics.LinearGradient;
 import android.graphics.Paint;
 import android.util.Log;
 import com.moac.android.wallpaperdemo.model.Track;
@@ -11,74 +10,89 @@ public class TrackDrawer {
 
     private static final String TAG = TrackDrawer.class.getSimpleName();
 
+    private static final int DEFAULT_BACKGROUND_COLOR = Color.LTGRAY;
+    private static final int DEFAULT_WAVEFORM_COLOR = Color.WHITE;
+    private static final int DEFAULT_TEXT_COLOR = Color.WHITE;
+
     private final Paint mBackgroundPaint;
     private final Paint mWaveformPaint;
     private final Paint mTextPaint;
-    private final int mColumns;
-    private final int mColumnGap;
+    private final int mColumnWidthPx;
+    private final int mColumnPaddingPx;
 
-    public TrackDrawer(Paint _backgroundPaint, Paint _waveformPaint, Paint _textPaint, int _columns, int _columnGap) {
-        mBackgroundPaint = _backgroundPaint;
-        mWaveformPaint = _waveformPaint;
-        mTextPaint = _textPaint;
-        mColumns = _columns;
-        mColumnGap = _columnGap;
+    public TrackDrawer(int _columnWidth) {
+        // Define Paint values once.
+        mBackgroundPaint = new Paint();
+        mBackgroundPaint.setColor(DEFAULT_BACKGROUND_COLOR);
+        mWaveformPaint = new Paint();
+        mWaveformPaint.setColor(DEFAULT_WAVEFORM_COLOR);
+        mTextPaint = new Paint();
+        mTextPaint.setColor(DEFAULT_TEXT_COLOR);
+        mTextPaint.setTextAlign(Paint.Align.CENTER);
+        mColumnWidthPx = _columnWidth;
+        mColumnPaddingPx = _columnWidth;
+    }
+
+    public void setBackgroundColor(int _color) {
+        mBackgroundPaint.setColor(_color);
+    }
+
+    public void setWaveformColor(int _color) {
+        mWaveformPaint.setColor(_color);
+    }
+
+    public void setTextColor(int _color) {
+        mTextPaint.setColor(_color);
     }
 
     public void drawOn(Canvas _canvas, Track _track) {
 
         final float[] waveform = _track.getWaveformData();
 
-        // Don't draw on Canvas if we haven't got anything to draw!
+        // Don't draw if we haven't got anything to draw!
         if(waveform == null || waveform.length == 0) {
             Log.w(TAG, "Track contains empty waveform: " + _track.getId());
             return;
         }
 
-        Log.v(TAG, "drawOn() - data width: " + waveform.length + " columns:" + mColumns);
-
+        // Background color
         _canvas.drawPaint(mBackgroundPaint);
 
-        final int columnIndexFactor = waveform.length / mColumns;
-        final int columnWidth = _canvas.getWidth() / mColumns;
-        // How much of the display should be used up.
+        // The number of columns that fit in the canvas with the desired column spacing
+        final int columns = _canvas.getWidth() / (mColumnWidthPx + mColumnPaddingPx);
+
+        // The number of datapoints that contribute to a column
+        final int datapoints = waveform.length / columns;
+
+        Log.v(TAG, "drawOn() - data width: " + waveform.length + " columns:" + columns);
+
+        // The display height to be used by the waveform
         final int heightScalingFactor = _canvas.getHeight() / 2;
         final int centreLine = _canvas.getHeight() / 2;
         final int centreWidth = _canvas.getWidth() / 2;
 
+        // Column extremities
         float left = 0;
-        float right = left + columnWidth;
+        float right = left + mColumnWidthPx;
 
-//            // FIXME This only varies when the dimensions change
-//            LinearGradient gradient = new LinearGradient(
-//              0,
-//              _canvas.getHeight() / 4,
-//              0,
-//              centreLine + _canvas.getHeight() / 4,
-//              0xFFFF8500, 0xFFFF1009,
-//              android.graphics.Shader.TileMode.MIRROR);
-
-        for(int i = 0; i < mColumns; i++) {
+        for(int i = 0; i < waveform.length; i += datapoints) {
             Log.v(TAG, "drawOn() - drawing column: " + i);
-            Log.v(TAG, "drawOn() - waveform value: " + waveform[i * columnIndexFactor]);
-            float columnLength = waveform[i * columnIndexFactor] * heightScalingFactor;
+            Log.v(TAG, "drawOn() - waveform value: " + waveform[i]);
+            float columnLength = waveform[i] * heightScalingFactor;
             float top = centreLine - (columnLength / 2);
             float bottom = top + columnLength;
 
             Log.v(TAG, "drawOn() - left: " + left + " right: " + right + " top: " + top + " bottom: " + bottom);
 
-//                Paint p = new Paint();
-//                p.setDither(true);
-//                p.setShader(gradient);
-
             _canvas.drawRect(left, top, right, bottom, mWaveformPaint);
-            left = right + mColumnGap;
-            right = left + columnWidth;
+
+            // Update for next column
+            left = right + mColumnPaddingPx;
+            right = left + mColumnWidthPx;
         }
 
-        // Display track text below waveform with small buffer
+        // Write track title text below waveform with small buffer
         String title = _track.getTitle();
-        mTextPaint.setTextAlign(Paint.Align.CENTER);
-        _canvas.drawText(title, centreWidth, centreLine + (heightScalingFactor /2) + 10, mTextPaint);
+        _canvas.drawText(title, centreWidth, centreLine + (heightScalingFactor / 2) + 10, mTextPaint);
     }
 }

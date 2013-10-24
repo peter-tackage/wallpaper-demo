@@ -16,6 +16,7 @@ import java.util.concurrent.TimeUnit;
  *
  * 1. Not thread safe - only one thread can control it.
  * 2. Handler is always posted a Runnable, even when paused, it just does no real work.
+ * 3. If the user isn't looking at the wallpaper, it will never update. Bad for high periods.
  */
 public class PeriodicHandlerScheduler implements Scheduler {
 
