@@ -8,7 +8,6 @@ import com.android.volley.toolbox.ImageLoader;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.moac.android.wallpaperdemo.api.CancelableCallback;
-import com.moac.android.wallpaperdemo.api.QueryMap;
 import com.moac.android.wallpaperdemo.api.SoundCloudApi;
 import com.moac.android.wallpaperdemo.model.Track;
 import com.moac.android.wallpaperdemo.util.NumberUtils;

@@ -9,7 +9,6 @@ import android.service.wallpaper.WallpaperService;
 import android.util.Log;
 import android.view.SurfaceHolder;
 import com.android.volley.toolbox.ImageLoader;
-import com.moac.android.wallpaperdemo.api.QueryMap;
 import com.moac.android.wallpaperdemo.api.SoundCloudApi;
 import com.moac.android.wallpaperdemo.model.Track;
 import com.moac.android.wallpaperdemo.util.NumberUtils;
