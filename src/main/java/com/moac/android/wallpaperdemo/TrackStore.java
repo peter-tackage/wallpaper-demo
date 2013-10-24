@@ -8,6 +8,7 @@ import android.util.Log;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.moac.android.wallpaperdemo.api.CancelableCallback;
+import com.moac.android.wallpaperdemo.api.CancelableTarget;
 import com.moac.android.wallpaperdemo.api.SoundCloudApi;
 import com.moac.android.wallpaperdemo.model.Track;
 import com.moac.android.wallpaperdemo.util.NumberUtils;
@@ -74,7 +75,7 @@ public class TrackStore {
     private final Context mContext;
     private InitListener mListener;
     private List<Track> mTracks;
-    private Map<String, Target> mIncompleteRequests;
+    private Map<String, CancelableTarget> mIncompleteRequests;
 
     public TrackStore(SoundCloudApi api, Context _context,
                       InitListener _listener) {
@@ -83,7 +84,7 @@ public class TrackStore {
         mListener = _listener;
 
         // Move this to somewhere better
-        mIncompleteRequests = new HashMap<String, Target>();
+        mIncompleteRequests = new HashMap<String, CancelableTarget>();
         mTracks = new ArrayList<Track>();
 
         initTrackModel();
@@ -112,7 +113,7 @@ public class TrackStore {
                     if(!isNullOrEmpty(track.getWaveformUrl())) {
                         // Note: Keep strong reference to Target so it doesn't GC
                         // See - https://github.com/square/picasso/issues/38
-                        Target target = new TrackTarget(track, new WaveformProcessor());
+                        CancelableTarget target = new CancelableTarget(new TrackTarget(track, new WaveformProcessor()));
                         mIncompleteRequests.put(track.getWaveformUrl(), target);
                         Picasso.with(mContext).load(track.getWaveformUrl()).into(target);
                     } else {
@@ -174,11 +175,12 @@ public class TrackStore {
             Log.w(TAG, "onError()");
             mIncompleteRequests.remove(mWaveformTrack.getWaveformUrl());
             mTracks.remove(mWaveformTrack);
-            logTrackState("onError() post");        }
+            logTrackState("onError() post");
+        }
 
         @Override
         public void onPrepareLoad(Drawable drawable) {
-            //To change body of implemented methods use File | Settings | File Templates.
+            // We don't care.
         }
     }
 
@@ -188,9 +190,8 @@ public class TrackStore {
 
     private void cancelPendingRequests() {
         logTrackState("cancelPendingRequests");
-        for(Target target : mIncompleteRequests.values()) {
-            // FIXME need wrapper
-            //  target..cancelRequest();
+        for(CancelableTarget target : mIncompleteRequests.values()) {
+            target.cancel();
         }
         mIncompleteRequests.clear();
     }
