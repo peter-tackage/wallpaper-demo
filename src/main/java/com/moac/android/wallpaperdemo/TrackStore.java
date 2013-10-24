@@ -23,7 +23,7 @@ import java.util.*;
 import static com.google.common.base.Strings.isNullOrEmpty;
 
 /**
- * This class makes tradeoffs between initial bandwidth usage & battery usage.
+ * This class makes trade-offs between initial bandwidth usage & battery usage.
  *
  * This implementation is biased in favour of preserving
  * battery life by attempting to fetch all returned images in
@@ -34,24 +34,14 @@ import static com.google.common.base.Strings.isNullOrEmpty;
  * doesn't remove it shortly after that and by doing so undo all the
  * hard work performed to save their precious battery.
  *
- * Also with the post-processing of the waveform images, large batches
- * of images being processed will no doubt have a negative image
- * on performance. Also, perhaps the resultant data could be cache to reduce
- * CPU drain.
- *
- * The cache used by Volley is reasonably large and will probably
- * eliminate bandwidth usage once these initial requests have completed.
- *
- * I visually undersample the bitmap in the TrackDrawer - there's no need for high quality images.
+ * I visually under-sample the bitmap in the TrackDrawer - there's no need for high quality images.
  *
  * TODO Build requests into smaller batches to balance tradeoffs.
  * TODO Find out if I can request low quality waveform images
  * TODO Add methods to change query (must reinit before).
- * TODO Make body of Callback cancelable (extend with cancel() method)
  * TODO Image transform should not be on the main thread.
  * TODO What happens when this fail to retrieve anything???
  * TODO Check about removing pending requests.
- * TODO Remove non 2.1 compliant Volley
  *
  * FIXME Remove usage of Google Guava's pseudo functional approach
  */

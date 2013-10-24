@@ -6,7 +6,7 @@
   android:installLocation="internalOnly">
 
   <uses-sdk
-    android:minSdkVersion="8"
+    android:minSdkVersion="7"
     android:targetSdkVersion="18" />
 
   <uses-feature android:name="android.software.live_wallpaper"/>
