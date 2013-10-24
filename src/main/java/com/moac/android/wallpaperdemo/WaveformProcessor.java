@@ -13,7 +13,7 @@ public class WaveformProcessor implements BitmapProcessor {
 
     public float[] transform(Bitmap _bitmap) {
         // TODO Test performance for extractAlpha vs Color.alpha()
-
+        Log.i(TAG, "transform() - width: " + _bitmap.getWidth());
         final int width = _bitmap.getWidth();
         final float centreLine = (float) _bitmap.getHeight() / 2f;
         float[] normalizedAmplitude = new float[width];

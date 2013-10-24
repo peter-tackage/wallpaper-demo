@@ -1,9 +1,10 @@
 package com.moac.android.wallpaperdemo;
 
+import android.content.Context;
+import android.graphics.Bitmap;
 import android.util.Log;
 import com.android.volley.NetworkError;
 import com.android.volley.TimeoutError;
-import com.android.volley.VolleyError;
 import com.android.volley.toolbox.ImageLoader;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
@@ -11,11 +12,15 @@ import com.moac.android.wallpaperdemo.api.CancelableCallback;
 import com.moac.android.wallpaperdemo.api.SoundCloudApi;
 import com.moac.android.wallpaperdemo.model.Track;
 import com.moac.android.wallpaperdemo.util.NumberUtils;
+import com.squareup.picasso.Picasso;
+import com.squareup.picasso.Target;
 import retrofit.Callback;
 import retrofit.RetrofitError;
 import retrofit.client.Response;
 
 import java.util.*;
+
+import static com.google.common.base.Strings.isNullOrEmpty;
 
 /**
  * This class makes tradeoffs between initial bandwidth usage & battery usage.
@@ -24,6 +29,10 @@ import java.util.*;
  * battery life by attempting to fetch all returned images in
  * one sequence, so the bandwidth used it only limited by the API's
  * response paging (number of tracks) and the size of the images.
+ *
+ * Of course, this assumes that the user actually likes the wallpaper and
+ * doesn't remove it shortly after that and by doing so undo all the
+ * hard work performed to save their precious battery.
  *
  * Also with the post-processing of the waveform images, large batches
  * of images being processed will no doubt have a negative image
@@ -63,20 +72,19 @@ public class TrackStore {
     }
 
     private final SoundCloudApi mApi;
-
-    private final ImageLoader mImageLoader;
+    private final Context mContext;
     private InitListener mListener;
     private List<Track> mTracks;
-    private Map<String, ImageLoader.ImageContainer> mIncompleteRequests;
+    private Map<String, Target> mIncompleteRequests;
 
-    public TrackStore(SoundCloudApi api, ImageLoader _imageLoader,
+    public TrackStore(SoundCloudApi api, Context _context,
                       InitListener _listener) {
         mApi = api;
-        mImageLoader = _imageLoader;
+        mContext = _context;
         mListener = _listener;
 
         // Move this to somewhere better
-        mIncompleteRequests = new HashMap<String, ImageLoader.ImageContainer>();
+        mIncompleteRequests = new HashMap<String, Target>();
         mTracks = new ArrayList<Track>();
 
         initTrackModel();
@@ -98,13 +106,21 @@ public class TrackStore {
             @Override
             public void success(List<Track> tracks, Response response) {
                 Log.i(TAG, "Successfully retrieved tracks: " + tracks.size());
-                mTracks = tracks;
-                for(Track track : mTracks) {
+
+                // Only add those that appear to have usuable data
+                for(Track track : tracks) {
                     Log.i(TAG, "success() - will get waveform URL: " + track.getWaveformUrl());
-                    mIncompleteRequests.put(track.getWaveformUrl(), mImageLoader.get(track.getWaveformUrl(),
-                      new WaveformResponseListener(new WaveformProcessor(), track)));
+                    if(!isNullOrEmpty(track.getWaveformUrl())) {
+                        // Note: Keep strong reference to Target so it doesn't GC
+                        // See - https://github.com/square/picasso/issues/38
+                        Target target = new TrackTarget(track, new WaveformProcessor());
+                        mIncompleteRequests.put(track.getWaveformUrl(), target);
+                        Picasso.with(mContext).load(track.getWaveformUrl()).into(target);
+                    } else {
+                        Log.w(TAG, "NULL OR EMPTY WAVEFORM!!!!");
+                    }
                 }
-                logTrackState("success()");
+                logTrackState("success() post");
             }
 
             @Override
@@ -130,49 +146,36 @@ public class TrackStore {
         return NumberUtils.getRandomElement(mTracks);
     }
 
-    private class WaveformResponseListener implements ImageLoader.ImageListener {
+    private class TrackTarget implements Target {
 
-        BitmapProcessor mTransformer;
-        Track mWaveformTrack;
+        private final Track mWaveformTrack;
+        private final BitmapProcessor mProcessor;
 
-        public WaveformResponseListener(BitmapProcessor _transformer, Track _waveformTrack) {
-            mTransformer = _transformer;
-            mWaveformTrack = _waveformTrack;
+        public TrackTarget(Track _track, BitmapProcessor _processor) {
+            mWaveformTrack = _track;
+            mProcessor = _processor;
         }
 
         @Override
-        public void onResponse(ImageLoader.ImageContainer _imageContainer, boolean _isImmediate) {
-            Log.i(TAG, "onResponse() - isImmediate: " + _isImmediate);
+        public void onSuccess(Bitmap bitmap) {
+            Log.i(TAG, "onSuccess() - extracting waveform data");
+            mIncompleteRequests.remove(mWaveformTrack.getWaveformUrl());
 
-            if(_imageContainer.getBitmap() != null) {
-                Log.i(TAG, "onResponse() - extracting waveform data");
-                mIncompleteRequests.remove(mWaveformTrack.getWaveformUrl());
-                float[] waveformData = mTransformer.transform(_imageContainer.getBitmap());
-                mWaveformTrack.setWaveformData(waveformData);  // FIXME Memory constraints?
-                mListener.isReady();
-            }
-            logTrackState("onResponse()");
+            // Assign the transformed waveform data
+            float[] waveformData = mProcessor.transform(bitmap);
+            mWaveformTrack.setWaveformData(waveformData);  // FIXME Memory constraints?
+            mTracks.add(mWaveformTrack);
+            mListener.isReady();
+
+            logTrackState("onResponse() post");
         }
 
         @Override
-        public void onErrorResponse(VolleyError _volleyError) {
-            Log.w(TAG, "WaveformResponseListener Error fetching waveform image", _volleyError.getCause());
-
-            /**
-             * Remove non-transient failures from the pending list, permanent failures
-             * are removed from the pending list, so they are not re-requested.
-             */
-
-            // No idea why a TimeoutError is not considered a NetworkError!
-            if(!(_volleyError instanceof NetworkError || _volleyError instanceof TimeoutError)) {
-                Log.w(TAG, "Removing waveform request from list due to permanent error: "
-                  + mWaveformTrack.getWaveformUrl(), _volleyError);
-                mIncompleteRequests.remove(mWaveformTrack.getWaveformUrl());
-                // FIXME This can result in concurrentmodiicationexception
-                mTracks.remove(mWaveformTrack);
-                Log.i(TAG, "onErrorResponse() - selecting from: " + mTracks.size() + " tracks");
-            }
-            logTrackState("onErrorResponse()");
+        public void onError() {
+            Log.w(TAG, "onError()");
+            mIncompleteRequests.remove(mWaveformTrack.getWaveformUrl());
+            mTracks.remove(mWaveformTrack);
+            logTrackState("onError() post");
         }
     }
 
@@ -182,8 +185,9 @@ public class TrackStore {
 
     private void cancelPendingRequests() {
         logTrackState("cancelPendingRequests");
-        for(ImageLoader.ImageContainer request : mIncompleteRequests.values()) {
-            request.cancelRequest();
+        for(Target target : mIncompleteRequests.values()) {
+            // FIXME need wrapper
+            //  target..cancelRequest();
         }
         mIncompleteRequests.clear();
     }

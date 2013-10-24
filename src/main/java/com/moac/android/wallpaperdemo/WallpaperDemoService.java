@@ -8,7 +8,6 @@ import android.os.Bundle;
 import android.service.wallpaper.WallpaperService;
 import android.util.Log;
 import android.view.SurfaceHolder;
-import com.android.volley.toolbox.ImageLoader;
 import com.moac.android.wallpaperdemo.api.SoundCloudApi;
 import com.moac.android.wallpaperdemo.model.Track;
 import com.moac.android.wallpaperdemo.util.NumberUtils;
@@ -60,8 +59,7 @@ public class WallpaperDemoService extends WallpaperService {
 
             // Configure and initialise the TrackStore
             SoundCloudApi api = WallpaperApplication.getInstance().getSoundCloudApi();
-            ImageLoader imageLoader = WallpaperApplication.getInstance().getImageLoader();
-            mTrackStore = new TrackStore(api, imageLoader,
+            mTrackStore = new TrackStore(api, getApplicationContext(),
               new TrackStore.InitListener() {
                   @Override
                   public void isReady() {

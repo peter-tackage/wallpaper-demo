@@ -5,7 +5,7 @@ import android.util.Log;
 
 import java.util.concurrent.TimeUnit;
 
-/** *
+/**
  * Good things about this approach -
  *
  * 1. Simple! No messy calculations about when the next task should be due
