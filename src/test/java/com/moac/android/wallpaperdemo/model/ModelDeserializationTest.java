@@ -38,7 +38,7 @@ public class ModelDeserializationTest {
     }
 
     @Test
-    public void test_tracksJsonDeserialisation() throws IOException {
+    public void test_tracksJsonDeserialisation() {
         String json = readTestDataFile("tracks.json");
         Type collectionType = new TypeToken<List<Track>>() {}.getType();
         List<Track> tracks = gson.fromJson(json, collectionType);
@@ -47,7 +47,7 @@ public class ModelDeserializationTest {
     }
 
     @Test
-    public void test_trackSingleJsonDeserialisation() throws IOException {
+    public void test_trackSingleJsonDeserialisation() {
         String json = readTestDataFile("track_single.json");
         Type trackType = new TypeToken<Track>() {}.getType();
 
