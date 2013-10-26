@@ -50,7 +50,7 @@ public class WallpaperDemoService extends WallpaperService {
             mScheduler = new PeriodicHandlerScheduler(new Runnable() {
                 @Override
                 public void run() {
-                    Log.i(TAG, "### Got run() callback");
+                    Log.i(TAG, "run() Scheduler task due callback ");
                     mCurrentTrack = mTrackStore.getTrack();
                     mTrackDrawer.setBackgroundColor(NumberUtils.getRandomElement(mPrettyColors));
                     drawImage();
@@ -63,7 +63,7 @@ public class WallpaperDemoService extends WallpaperService {
               new TrackStore.InitListener() {
                   @Override
                   public void isReady() {
-                      Log.i(TAG, "### Got isReady() callback");
+                      Log.i(TAG, "isReady() TrackStore initialisation complete");
                       mScheduler.start();
                   }
               });
@@ -92,8 +92,7 @@ public class WallpaperDemoService extends WallpaperService {
                                      int width, int height) {
             super.onSurfaceChanged(holder, format, width, height);
             Log.v(TAG, "onSurfaceChanged() Current surface size: " + width + "," + height);
-            // Draw the current image in accordance with the changes.
-            // This called on orientation change.
+            // Redraw the current Track, this called on orientation change.
             drawImage();
         }
 
@@ -121,10 +120,10 @@ public class WallpaperDemoService extends WallpaperService {
             try {
                 c = holder.lockCanvas();
                 if(c != null) {
-                    if(mCurrentTrack == null) {
-                        drawPlaceholderOn(c);
-                    } else {
+                    if(mCurrentTrack != null) {
                         mTrackDrawer.drawOn(c, mCurrentTrack);
+                    } else {
+                        drawPlaceholderOn(c);
                     }
                 }
             } finally {

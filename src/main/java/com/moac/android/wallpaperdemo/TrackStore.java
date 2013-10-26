@@ -2,25 +2,23 @@ package com.moac.android.wallpaperdemo;
 
 import android.content.Context;
 import android.graphics.Bitmap;
-import android.graphics.drawable.Drawable;
 import android.util.Log;
-
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
-import com.moac.android.wallpaperdemo.api.CancelableCallback;
-import com.moac.android.wallpaperdemo.api.CancelableTarget;
 import com.moac.android.wallpaperdemo.api.SoundCloudApi;
 import com.moac.android.wallpaperdemo.model.Track;
 import com.moac.android.wallpaperdemo.util.NumberUtils;
 import com.squareup.picasso.Picasso;
-import com.squareup.picasso.Target;
-import retrofit.Callback;
-import retrofit.RetrofitError;
-import retrofit.client.Response;
+import rx.Observable;
+import rx.Subscription;
+import rx.android.concurrency.AndroidSchedulers;
+import rx.concurrency.Schedulers;
+import rx.subscriptions.Subscriptions;
+import rx.util.functions.Action1;
 
-import java.util.*;
-
-import static com.google.common.base.Strings.isNullOrEmpty;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * This class makes trade-offs between initial bandwidth usage & battery usage.
@@ -39,9 +37,7 @@ import static com.google.common.base.Strings.isNullOrEmpty;
  * TODO Build requests into smaller batches to balance tradeoffs.
  * TODO Find out if I can request low quality waveform images
  * TODO Add methods to change query (must reinit before).
- * TODO Image transform should not be on the main thread.
  * TODO What happens when this fail to retrieve anything???
- * TODO Check about removing pending requests.
  *
  * FIXME Remove usage of Google Guava's pseudo functional approach
  */
@@ -65,7 +61,33 @@ public class TrackStore {
     private final Context mContext;
     private InitListener mListener;
     private List<Track> mTracks;
-    private Map<String, CancelableTarget> mIncompleteRequests;
+
+    private Subscription mTrackSubscription;
+    private Observable<Track> mTracksObservable = rx.Observable.create(new rx.Observable.OnSubscribeFunc<Track>() {
+        @Override
+        public Subscription onSubscribe(rx.Observer<? super Track> observer) {
+            try {
+                List<Track> tracks = mApi.getTracks("electronic", 10);
+                // FIXME Even if the unsubscribe, it will loop over all tracks: consider splitting up
+                for(Track track : tracks) {
+                    try {
+                        Bitmap bitmap = Picasso.with(mContext).load(track.getWaveformUrl()).get();
+                        float[] waveformData = new WaveformProcessor().transform(bitmap);
+                        track.setWaveformData(waveformData);
+                        observer.onNext(track);
+                    } catch(IOException e) {
+                        Log.w(TAG, "Failed to get Bitmap for track: " + track.getTitle());
+                        // Don't bother telling observer, it's just one track.
+                    }
+                }
+                observer.onCompleted();
+            } catch(Exception e) {
+                observer.onError(e);
+            }
+
+            return Subscriptions.empty();
+        }
+    });
 
     public TrackStore(SoundCloudApi api, Context _context,
                       InitListener _listener) {
@@ -73,8 +95,6 @@ public class TrackStore {
         mContext = _context;
         mListener = _listener;
 
-        // Move this to somewhere better
-        mIncompleteRequests = new HashMap<String, CancelableTarget>();
         mTracks = new ArrayList<Track>();
 
         initTrackModel();
@@ -86,39 +106,29 @@ public class TrackStore {
     private void initTrackModel() {
         Log.i(TAG, "initTrackModel()");
 
-        // Cancel requests and reset state.
-        cancelPendingRequests();
+        // Cancel any existing subscription and reset state.
+        unsubscribe();
         mTracks.clear();
 
+        mTrackSubscription = mTracksObservable.subscribeOn(Schedulers.newThread()).observeOn(AndroidSchedulers.mainThread())
+          .subscribe(new Action1<Track>() {
+                         @Override
+                         public void call(Track response) {
+                             Log.i(TAG, "Emitted Track: " + response.getTitle());
+                             mTracks.add(response);
+                             mListener.isReady();
+                         }
+                     }, new Action1<Throwable>() {
+                         @Override
+                         public void call(Throwable error) {
+                             Log.w(TAG, "Failed to fetch tracks");
+                             // Have failed to initialise.
+                             // Depending on the error, start task to retry.
+                         }
+                     }
+          );
+
         logTrackState("initTrackModel()");
-
-        mApi.getTracks("electronic", 10, new CancelableCallback<List<Track>>(new Callback<List<Track>>() {
-            @Override
-            public void success(List<Track> tracks, Response response) {
-                Log.i(TAG, "Successfully retrieved tracks: " + tracks.size());
-
-                // Only add those that appear to have usuable data
-                for(Track track : tracks) {
-                    Log.i(TAG, "success() - will get waveform URL: " + track.getWaveformUrl());
-                    if(!isNullOrEmpty(track.getWaveformUrl())) {
-                        // Note: Keep strong reference to Target so it doesn't GC
-                        // See - https://github.com/square/picasso/issues/38
-                        CancelableTarget target = new CancelableTarget(new TrackTarget(track, new WaveformProcessor()));
-                        mIncompleteRequests.put(track.getWaveformUrl(), target);
-                        Picasso.with(mContext).load(track.getWaveformUrl()).into(target);
-                    } else {
-                        Log.w(TAG, "NULL OR EMPTY WAVEFORM!!!!");
-                    }
-                }
-                logTrackState("success() post");
-            }
-
-            @Override
-            public void failure(RetrofitError error) {
-                Log.w(TAG, "Failed to retrieve tracks", error);
-                mTracks = new ArrayList<Track>();
-            }
-        }));
     }
 
     public Track getTrack() {
@@ -136,58 +146,17 @@ public class TrackStore {
         return NumberUtils.getRandomElement(mTracks);
     }
 
-    private class TrackTarget implements Target {
-
-        private final Track mWaveformTrack;
-        private final BitmapProcessor mProcessor;
-
-        public TrackTarget(Track _track, BitmapProcessor _processor) {
-            mWaveformTrack = _track;
-            mProcessor = _processor;
-        }
-
-        @Override
-        public void onBitmapLoaded(Bitmap bitmap, Picasso.LoadedFrom loadedFrom) {
-            Log.i(TAG, "onBitmapLoaded() - extracting waveform data");
-            mIncompleteRequests.remove(mWaveformTrack.getWaveformUrl());
-
-            // Assign the transformed waveform data
-            float[] waveformData = mProcessor.transform(bitmap);
-            mWaveformTrack.setWaveformData(waveformData);  // FIXME Memory constraints?
-            mTracks.add(mWaveformTrack);
-            mListener.isReady();
-
-            logTrackState("onBitmapLoaded() post");
-        }
-
-        @Override
-        public void onBitmapFailed(Drawable drawable) {
-            Log.w(TAG, "onError()");
-            mIncompleteRequests.remove(mWaveformTrack.getWaveformUrl());
-            mTracks.remove(mWaveformTrack);
-            logTrackState("onError() post");
-        }
-
-        @Override
-        public void onPrepareLoad(Drawable drawable) {
-            // We don't care.
-        }
-    }
-
     public void onDestroy() {
-        cancelPendingRequests();
+        unsubscribe();
     }
 
-    private void cancelPendingRequests() {
-        logTrackState("cancelPendingRequests");
-        for(CancelableTarget target : mIncompleteRequests.values()) {
-            target.cancel();
-        }
-        mIncompleteRequests.clear();
+    private void unsubscribe() {
+        logTrackState("unsubscribe");
+        if(mTrackSubscription != null)
+            mTrackSubscription.unsubscribe();
     }
 
     private void logTrackState(String at) {
-
         Iterable<Track> readyTracks = Iterables.filter(mTracks, new Predicate<Track>() {
             @Override
             public boolean apply(Track track) {
@@ -195,7 +164,6 @@ public class TrackStore {
             }
         });
 
-        Log.i(TAG, at + " - pending requests: " + (mIncompleteRequests == null ? 0 : mIncompleteRequests.size()));
         Log.i(TAG, at + " - ready tracks: " + (readyTracks == null ? 0 : Iterables.size(readyTracks)));
         Log.i(TAG, at + " - total tracks: " + (mTracks == null ? 0 : mTracks.size()));
     }

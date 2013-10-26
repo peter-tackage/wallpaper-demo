@@ -12,4 +12,8 @@ public interface SoundCloudApi {
     public void getTracks(@Query("genre") String _genre,
                           @Query("limit") long _limit,
                           Callback<List<Track>> _callback);
+
+    @GET("/tracks")
+    public List<Track> getTracks(@Query("genre") String _genre,
+                                 @Query("limit") long _limit);
 }

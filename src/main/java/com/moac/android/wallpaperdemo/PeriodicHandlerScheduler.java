@@ -9,7 +9,7 @@ import java.util.concurrent.TimeUnit;
  * Good things about this approach -
  *
  * 1. Simple! No messy calculations about when the next task should be due
- * 2. Performance - No forced action when unpausing due to "catching up" on updates
+ * 2. More responsive - No immediate action when unpausing due to "catching up" on updates
  * 3. Schedule with fixed delay is performed - no bunching up of requests.
  *
  * Bad things -
