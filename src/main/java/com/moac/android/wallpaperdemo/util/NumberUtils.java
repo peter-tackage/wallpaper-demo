@@ -12,7 +12,7 @@ public class NumberUtils {
             return _array[0];
 
         Random random = new Random();
-        int index = random.nextInt(_array.length - 1);
+        int index = random.nextInt(_array.length);
         return _array[index];
     }
 
@@ -23,7 +23,7 @@ public class NumberUtils {
             return _list.get(0);
 
         Random random = new Random();
-        int index = random.nextInt(_list.size() - 1);
+        int index = random.nextInt(_list.size());
         return _list.get(index);
     }
 
