@@ -1,8 +1,8 @@
-A demo application to test some ideas.
+A demo Android application to test some ideas.
 
-Uses -
+It uses the following libraries:
 
-o Square Retrofit
-o Square Picasso
-o Rx Java
+    * Square Retrofit
+    * Square Picasso
+    * Rx Java
 
