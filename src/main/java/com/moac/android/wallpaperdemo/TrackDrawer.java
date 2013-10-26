@@ -1,8 +1,6 @@
 package com.moac.android.wallpaperdemo;
 
-import android.graphics.Canvas;
-import android.graphics.Color;
-import android.graphics.Paint;
+import android.graphics.*;
 import android.util.Log;
 import com.moac.android.wallpaperdemo.model.Track;
 
@@ -17,20 +15,23 @@ public class TrackDrawer {
     private final Paint mBackgroundPaint;
     private final Paint mWaveformPaint;
     private final Paint mTextPaint;
-    private final int mColumnWidthPx;
-    private final int mColumnPaddingPx;
+    private final float mColumnWidthPx;
+    private final float mColumnPaddingPx;
 
-    public TrackDrawer(int _columnWidth) {
+    public TrackDrawer(float _columnWidth, float _gap) {
         // Define Paint values once.
         mBackgroundPaint = new Paint();
         mBackgroundPaint.setColor(DEFAULT_BACKGROUND_COLOR);
         mWaveformPaint = new Paint();
         mWaveformPaint.setColor(DEFAULT_WAVEFORM_COLOR);
+        mWaveformPaint.setAntiAlias(true);
         mTextPaint = new Paint();
         mTextPaint.setColor(DEFAULT_TEXT_COLOR);
         mTextPaint.setTextAlign(Paint.Align.CENTER);
+        mTextPaint.setAntiAlias(true);
+        mTextPaint.setTextSize(16);
         mColumnWidthPx = _columnWidth;
-        mColumnPaddingPx = _columnWidth;
+        mColumnPaddingPx = _gap;
     }
 
     public void setBackgroundColor(int _color) {
@@ -55,11 +56,11 @@ public class TrackDrawer {
             return;
         }
 
-        // Background color
+        // Draw background
         _canvas.drawPaint(mBackgroundPaint);
 
         // The number of columns that fit in the canvas with the desired column spacing
-        final int columns = _canvas.getWidth() / (mColumnWidthPx + mColumnPaddingPx);
+        final int columns = (int) ((_canvas.getWidth() - 2f* (mColumnPaddingPx)) / (mColumnWidthPx + mColumnPaddingPx));
 
         // The number of datapoints that contribute to a column
         final int datapoints = waveform.length / columns;
@@ -67,12 +68,11 @@ public class TrackDrawer {
         Log.v(TAG, "drawOn() - data width: " + waveform.length + " columns:" + columns);
 
         // The display height to be used by the waveform
-        final int heightScalingFactor = _canvas.getHeight() / 2;
+        final int heightScalingFactor = _canvas.getHeight() / 3;
         final int centreLine = _canvas.getHeight() / 2;
-        final int centreWidth = _canvas.getWidth() / 2;
 
-        // Column extremities
-        float left = 0;
+        // Incrementing column borders
+        float left = mColumnPaddingPx;
         float right = left + mColumnWidthPx;
 
         for(int i = 0; i < waveform.length; i += datapoints) {
@@ -84,15 +84,27 @@ public class TrackDrawer {
 
             Log.v(TAG, "drawOn() - left: " + left + " right: " + right + " top: " + top + " bottom: " + bottom);
 
-            _canvas.drawRect(left, top, right, bottom, mWaveformPaint);
+            RectF rect = new RectF(left, top, right, bottom);
+            _canvas.drawOval(rect, mWaveformPaint);
+            drawTails(_canvas, left, right, top, true, 1);
+            drawTails(_canvas, left, right, bottom, false, 1);
 
-            // Update for next column
+            // Increment for next column
             left = right + mColumnPaddingPx;
             right = left + mColumnWidthPx;
         }
 
-        // Write track title text below waveform with small buffer
+        // Write track title text below waveform
         String title = _track.getTitle();
-        _canvas.drawText(title, centreWidth, centreLine + (heightScalingFactor / 2) + 10, mTextPaint);
+        _canvas.drawText(title, _canvas.getWidth() / 2f, centreLine + (heightScalingFactor / 2f) + (2f * mColumnWidthPx) + 10, mTextPaint);
+    }
+
+    private void drawTails(Canvas _canvas, float left, float right, float initY, boolean isTop, int count) {
+        float startY = initY;
+        for(int i = 0; i < count; i++) {
+            startY = isTop ? startY - mColumnWidthPx : startY + mColumnWidthPx;
+            _canvas.drawCircle(left + ((right - left) / 2f), startY, mColumnWidthPx / 2f, mWaveformPaint);
+            startY = isTop ? startY - mColumnWidthPx : startY + mColumnWidthPx;  // Gap
+        }
     }
 }

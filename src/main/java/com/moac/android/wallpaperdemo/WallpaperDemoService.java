@@ -2,11 +2,13 @@ package com.moac.android.wallpaperdemo;
 
 import android.app.WallpaperManager;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.net.Uri;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.service.wallpaper.WallpaperService;
 import android.util.Log;
 import android.view.SurfaceHolder;
@@ -20,9 +22,7 @@ import rx.android.concurrency.AndroidSchedulers;
 import rx.concurrency.Schedulers;
 import rx.util.functions.Action1;
 
-import java.util.ArrayList;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public class WallpaperDemoService extends WallpaperService {
@@ -34,7 +34,7 @@ public class WallpaperDemoService extends WallpaperService {
         return new WallpaperEngine();
     }
 
-    protected class WallpaperEngine extends Engine {
+    protected class WallpaperEngine extends Engine implements SharedPreferences.OnSharedPreferenceChangeListener {
 
         private long mLastCommandTime;
         private Subscription mSubscription;
@@ -53,11 +53,13 @@ public class WallpaperDemoService extends WallpaperService {
             Log.d(TAG, "onCreate()");
             super.onCreate(surfaceHolder);
             setTouchEventsEnabled(true);
+            SharedPreferences prefs =  PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
+            prefs.registerOnSharedPreferenceChangeListener(WallpaperEngine.this);
 
             Log.i(TAG, "Creating new WallpaperEngine instance");
 
             // Configure the TrackDrawer
-            mTrackDrawer = new TrackDrawer(7);
+            mTrackDrawer = new TrackDrawer(10, 10);
 
             // Configure the Track Scheduler
             mScheduler = new PeriodicHandlerScheduler(new Runnable() {
@@ -73,6 +75,11 @@ public class WallpaperDemoService extends WallpaperService {
             // Configure and initialise model
             SoundCloudApi api = WallpaperApplication.getInstance().getSoundCloudApi();
             buildModel(api, "electronic", 10);
+        }
+
+        @Override
+        public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
+              Log.i(TAG, "onSharedPreferenceChanged() - Notified ");
         }
 
         private Track getTrack() {

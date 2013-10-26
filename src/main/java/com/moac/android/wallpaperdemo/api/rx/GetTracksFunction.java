@@ -15,7 +15,7 @@ import rx.subscriptions.Subscriptions;
 import java.io.IOException;
 import java.util.List;
 
-public class GetTracksFunction implements Observable.OnSubscribeFunc<Track>{
+public class GetTracksFunction implements Observable.OnSubscribeFunc<Track> {
 
     private static final String TAG = GetTracksFunction.class.getSimpleName();
 
@@ -35,7 +35,8 @@ public class GetTracksFunction implements Observable.OnSubscribeFunc<Track>{
     public Subscription onSubscribe(Observer<? super Track> observer) {
         try {
             List<Track> tracks = mApi.getTracks(mGenre, mLimit);
-            // FIXME Even if the unsubscribe, it will loop over all tracks: consider splitting up
+            // FIXME Even if we unsubscribe, it will still loop over all.
+            // Perhaps the
             for(Track track : tracks) {
                 try {
                     Bitmap bitmap = Picasso.with(mContext).load(track.getWaveformUrl()).get();
@@ -53,5 +54,6 @@ public class GetTracksFunction implements Observable.OnSubscribeFunc<Track>{
             observer.onError(e);
         }
 
-        return Subscriptions.empty();    }
+        return Subscriptions.empty();
+    }
 }
