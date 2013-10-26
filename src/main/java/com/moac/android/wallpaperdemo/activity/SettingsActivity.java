@@ -6,6 +6,7 @@ import android.preference.PreferenceActivity;
 import android.preference.PreferenceFragment;
 import com.moac.android.wallpaperdemo.R;
 
+// TODO Make a HC+ version too.
 public class SettingsActivity extends PreferenceActivity implements SharedPreferences.OnSharedPreferenceChangeListener {
 
     @Override
@@ -16,11 +17,6 @@ public class SettingsActivity extends PreferenceActivity implements SharedPrefer
         addPreferencesFromResource(R.xml.settings);
         getPreferenceManager().getSharedPreferences()
           .registerOnSharedPreferenceChangeListener(this);
-    }
-
-    @Override
-    public void onResume() {
-        super.onResume();
     }
 
     @Override
