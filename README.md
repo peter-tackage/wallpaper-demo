@@ -3,7 +3,6 @@ A demo application to test some ideas.
 Uses -
 
 o Square Retrofit
+o Square Picasso
+o Rx Java
 
-o Gson (under the covers in Retrofit)
-
-o Android Volley (just for its ImageLoader)
