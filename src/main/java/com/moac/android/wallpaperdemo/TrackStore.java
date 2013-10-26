@@ -3,8 +3,6 @@ package com.moac.android.wallpaperdemo;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.util.Log;
-import com.google.common.base.Predicate;
-import com.google.common.collect.Iterables;
 import com.moac.android.wallpaperdemo.api.SoundCloudApi;
 import com.moac.android.wallpaperdemo.model.Track;
 import com.moac.android.wallpaperdemo.util.NumberUtils;
@@ -24,9 +22,10 @@ import java.util.List;
  * This class makes trade-offs between initial bandwidth usage & battery usage.
  *
  * This implementation is biased in favour of preserving
- * battery life by attempting to fetch all returned images in
- * one sequence, so the bandwidth used it only limited by the API's
- * response paging (number of tracks) and the size of the images.
+ * battery life by attempting to fetch all available waveforms in
+ * one sequence, rather than each waveform periodically. This batching of
+ * waveform requests preserves battery in the long term by only powering the
+ * radio once.
  *
  * Of course, this assumes that the user actually likes the wallpaper and
  * doesn't remove it shortly after that and by doing so undo all the
@@ -59,15 +58,17 @@ public class TrackStore {
 
     private final SoundCloudApi mApi;
     private final Context mContext;
-    private InitListener mListener;
+    private InitListener mInitListener;
     private List<Track> mTracks;
 
     private Subscription mTrackSubscription;
+    private String mGenre;
+    private long mLimit;
     private Observable<Track> mTracksObservable = rx.Observable.create(new rx.Observable.OnSubscribeFunc<Track>() {
         @Override
         public Subscription onSubscribe(rx.Observer<? super Track> observer) {
             try {
-                List<Track> tracks = mApi.getTracks("electronic", 10);
+                List<Track> tracks = mApi.getTracks(mGenre, mLimit);
                 // FIXME Even if the unsubscribe, it will loop over all tracks: consider splitting up
                 for(Track track : tracks) {
                     try {
@@ -77,9 +78,10 @@ public class TrackStore {
                         observer.onNext(track);
                     } catch(IOException e) {
                         Log.w(TAG, "Failed to get Bitmap for track: " + track.getTitle());
-                        // Don't bother telling observer, it's just one track.
+                        // Don't bother telling observer, it's just one track that's failed.
                     }
                 }
+                // TODO Perhaps notify observer if we have no tracks.
                 observer.onCompleted();
             } catch(Exception e) {
                 observer.onError(e);
@@ -93,8 +95,7 @@ public class TrackStore {
                       InitListener _listener) {
         mApi = api;
         mContext = _context;
-        mListener = _listener;
-
+        mInitListener = _listener;
         mTracks = new ArrayList<Track>();
 
         initTrackModel();
@@ -116,14 +117,14 @@ public class TrackStore {
                          public void call(Track response) {
                              Log.i(TAG, "Emitted Track: " + response.getTitle());
                              mTracks.add(response);
-                             mListener.isReady();
+                             mInitListener.isReady();
                          }
                      }, new Action1<Throwable>() {
                          @Override
                          public void call(Throwable error) {
                              Log.w(TAG, "Failed to fetch tracks");
                              // Have failed to initialise.
-                             // Depending on the error, start task to retry.
+                             // TODO Depending on the error, start task to retry.
                          }
                      }
           );
@@ -133,15 +134,7 @@ public class TrackStore {
 
     public Track getTrack() {
         logTrackState("getTrack()");
-
-        Iterable<Track> readyTracks = Iterables.filter(mTracks, new Predicate<Track>() {
-            @Override
-            public boolean apply(Track track) {
-                return track.getWaveformData() != null;
-            }
-        });
-        Track[] tracks = Iterables.toArray(readyTracks, Track.class);
-        if(tracks.length == 0)
+        if(mTracks.size() == 0)
             return null;
         return NumberUtils.getRandomElement(mTracks);
     }
@@ -152,19 +145,13 @@ public class TrackStore {
 
     private void unsubscribe() {
         logTrackState("unsubscribe");
-        if(mTrackSubscription != null)
+        if(mTrackSubscription != null) {
             mTrackSubscription.unsubscribe();
+            mTrackSubscription = null;
+        }
     }
 
     private void logTrackState(String at) {
-        Iterable<Track> readyTracks = Iterables.filter(mTracks, new Predicate<Track>() {
-            @Override
-            public boolean apply(Track track) {
-                return track.getWaveformData() != null;
-            }
-        });
-
-        Log.i(TAG, at + " - ready tracks: " + (readyTracks == null ? 0 : Iterables.size(readyTracks)));
         Log.i(TAG, at + " - total tracks: " + (mTracks == null ? 0 : mTracks.size()));
     }
 }
