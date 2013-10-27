@@ -62,13 +62,13 @@ public class TrackDrawer {
 
         Log.d(TAG, "drawOn() - data width: " + waveform.length);
         Log.d(TAG, "drawOn() - canvas width: " + _canvas.getWidth());
-        Log.d(TAG, "drawOn() - column width & padding width: " + mColumnWidthPx + " " + mColumnPaddingPx);
+        Log.d(TAG, "drawOn() - column width & padding width: " + mColumnWidthPx + "," + mColumnPaddingPx);
 
-        float drawableWidth = _canvas.getWidth() - 2f * mColumnPaddingPx;
+        float drawableWidth = _canvas.getWidth() - mColumnPaddingPx;
         Log.d(TAG, "drawOn() - useableWidth: " + drawableWidth);
 
         // The number of whole columns that fit in the drawable width with the desired column spacing
-        final int columns = (int) (drawableWidth / (mColumnWidthPx + mColumnPaddingPx));
+        final int columns = (int) (drawableWidth / (mColumnPaddingPx));
         Log.d(TAG, "drawOn() - columns: " + columns);
 
         // The remainder, we want to shift the columns to the centre of the available width.
@@ -84,13 +84,13 @@ public class TrackDrawer {
         final int centreLine = _canvas.getHeight() / 2;
 
         // Incrementing column borders
-        float left = mColumnPaddingPx + (remainder / 2);
+        float left = (mColumnPaddingPx + remainder) / 2; // initial margin
         float right = left + mColumnWidthPx;
 
-        for(int i = 0; i < waveform.length; i += datapoints) {
-            Log.v(TAG, "drawOn() - drawing using datapoint: " + i);
-            Log.v(TAG, "drawOn() - waveform value: " + waveform[i]);
-            float columnLength = waveform[i] * heightScalingFactor;
+        for(int col = 0; col < columns; col++) {
+            Log.v(TAG, "drawOn() - drawing column: " + col);
+            Log.v(TAG, "drawOn() - waveform value: " + waveform[col*datapoints]);
+            float columnLength = waveform[col*datapoints] * heightScalingFactor;
             float top = centreLine - (columnLength / 2);
             float bottom = top + columnLength;
 
