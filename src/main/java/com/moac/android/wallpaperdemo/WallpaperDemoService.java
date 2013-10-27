@@ -99,7 +99,7 @@ public class WallpaperDemoService extends WallpaperService {
 
         // TODO Restart may be required when changing search criteria.
         public void scheduleDrawer() {
-            if(mDrawerSubscription == null)
+            if(mDrawerSubscription != null)
                 return;
 
             Log.i(TAG, "scheduleDrawer() - start the drawer subscription");
@@ -211,10 +211,9 @@ public class WallpaperDemoService extends WallpaperService {
             Log.i(TAG, "drawDebug() - start");
             Paint textPaint = new Paint();
             textPaint.setColor(Color.BLACK);
-            textPaint.setTextAlign(Paint.Align.CENTER);
             textPaint.setTextSize(24);
             String msg = String.format("API calls: %d, tracks: %d", mDebugApiCalls, mTracks.size());
-            _canvas.drawText(msg, 20, 20, textPaint);
+            _canvas.drawText(msg, 0, 50, textPaint);
         }
 
         // Asks framework to open the provided URL
