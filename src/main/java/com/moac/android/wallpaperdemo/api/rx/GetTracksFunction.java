@@ -36,7 +36,6 @@ public class GetTracksFunction implements Observable.OnSubscribeFunc<Track> {
         try {
             List<Track> tracks = mApi.getTracks(mGenre, mLimit);
             // FIXME Even if we unsubscribe, it will still loop over all.
-            // Perhaps the
             for(Track track : tracks) {
                 try {
                     Bitmap bitmap = Picasso.with(mContext).load(track.getWaveformUrl()).get();
@@ -48,7 +47,6 @@ public class GetTracksFunction implements Observable.OnSubscribeFunc<Track> {
                     // Don't bother telling observer, it's just one track that's failed.
                 }
             }
-            // TODO Perhaps notify observer if we have no tracks.
             observer.onCompleted();
         } catch(Exception e) {
             observer.onError(e);

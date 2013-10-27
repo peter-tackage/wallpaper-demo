@@ -17,12 +17,15 @@ import com.moac.android.wallpaperdemo.api.rx.GetTracksFunction;
 import com.moac.android.wallpaperdemo.model.Track;
 import com.moac.android.wallpaperdemo.util.NumberUtils;
 import rx.Observable;
+import rx.Observer;
 import rx.Subscription;
 import rx.android.concurrency.AndroidSchedulers;
 import rx.concurrency.Schedulers;
-import rx.util.functions.Action1;
+import rx.util.functions.Action0;
 
+import java.util.ArrayList;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public class WallpaperDemoService extends WallpaperService {
@@ -37,8 +40,8 @@ public class WallpaperDemoService extends WallpaperService {
     protected class WallpaperEngine extends Engine implements SharedPreferences.OnSharedPreferenceChangeListener {
 
         private long mLastCommandTime;
-        private Subscription mSubscription;
-        private Scheduler mScheduler;
+        private Subscription mPeriodicFetchSubscription;
+        private Subscription mDrawerSubscription;
         private TrackDrawer mTrackDrawer;
         private Track mCurrentTrack;
         private LinkedList<Track> mTracks;
@@ -60,21 +63,59 @@ public class WallpaperDemoService extends WallpaperService {
 
             // Configure the TrackDrawer
             mTrackDrawer = new TrackDrawer(10, 10);
-
-            // Configure the Track Scheduler
-            mScheduler = new PeriodicHandlerScheduler(new Runnable() {
-                @Override
-                public void run() {
-                    Log.i(TAG, "run() Scheduler task callback ");
-                    mCurrentTrack = getTrack();
-                    mTrackDrawer.setColor(NumberUtils.getRandomElement(mPrettyColors));
-                    drawImage();
-                }
-            }, 10, TimeUnit.SECONDS);
+            mTracks = new LinkedList<Track>();
 
             // Configure and initialise model
-            SoundCloudApi api = WallpaperApplication.getInstance().getSoundCloudApi();
-            buildModel(api, "electronic", 10);
+            final SoundCloudApi api = WallpaperApplication.getInstance().getSoundCloudApi();
+            mPeriodicFetchSubscription = AndroidSchedulers.mainThread().schedulePeriodically(new Action0() {
+                @Override
+                public void call() {
+                    Log.i(TAG, "PeriodFetchSubscription - getting more tracks from API");
+                    getApiTracks(api, "electronic", 10)
+                      .subscribeOn(Schedulers.newThread()).observeOn(AndroidSchedulers.mainThread())
+                      .subscribe(new Observer<Track>() {
+
+                          boolean isFirst = true;
+
+                          @Override
+                          public void onNext(Track response) {
+                              Log.i(TAG, "Emitted Track: " + response.getTitle());
+                              if(isFirst) {
+                                  mTracks.clear();
+                              }
+                              mTracks.add(response);
+                              if(isFirst) {
+                                  startDrawer();
+                              }
+                              isFirst = false;
+                          }
+
+                          @Override
+                          public void onCompleted() {}
+
+                          @Override
+                          public void onError(Throwable e) {
+                              Log.w(TAG, "PeriodFetchSubscription#onError()", e);
+                              // TODO Display message if nothing else to show.
+                          }
+                      });
+                }
+            }, 0, 2, TimeUnit.MINUTES);
+        }
+
+        public void startDrawer() {
+            Log.i(TAG, "startDrawer() - start the drawer subscription");
+            if(mDrawerSubscription != null)
+                mDrawerSubscription.unsubscribe();
+            mDrawerSubscription = AndroidSchedulers.mainThread().schedulePeriodically(new Action0() {
+                @Override
+                public void call() {
+                    Log.i(TAG, "call() - Drawer");
+                    mCurrentTrack = getTrack();
+                    mTrackDrawer.setColor(NumberUtils.getRandomElement(mPrettyColors));
+                    drawTrack();
+                }
+            }, 0, 10, TimeUnit.SECONDS);
         }
 
         @Override
@@ -85,19 +126,16 @@ public class WallpaperDemoService extends WallpaperService {
         @Override
         public void onDestroy() {
             Log.d(TAG, "onDestroy()");
-            mScheduler.stop();
-            unsubscribe();
+            if(mDrawerSubscription != null)
+                mDrawerSubscription.unsubscribe();
+            mPeriodicFetchSubscription.unsubscribe();
             super.onDestroy();
         }
 
         @Override
         public void onVisibilityChanged(boolean _isVisible) {
             Log.v(TAG, "onVisibilityChanged() isVisible: " + _isVisible);
-            if(!_isVisible) {
-                mScheduler.pause();
-            } else {
-                mScheduler.resume();
-            }
+            // TODO Not really sure if I should unsubscribe.
         }
 
         @Override
@@ -106,7 +144,7 @@ public class WallpaperDemoService extends WallpaperService {
             super.onSurfaceChanged(holder, format, width, height);
             Log.v(TAG, "onSurfaceChanged() Current surface size: " + width + "," + height);
             // Redraw the current Track, this called on orientation change.
-            drawImage();
+            drawTrack();
         }
 
         @Override
@@ -116,15 +154,16 @@ public class WallpaperDemoService extends WallpaperService {
                 long time = android.os.SystemClock.elapsedRealtime();
                 // Look for taps in the double-tap window (in ms)
                 if(((time - mLastCommandTime) < 500)
-                  && ((time - mLastCommandTime) > 100)) {
+                  && ((time - mLastCommandTime) > 100) && mCurrentTrack != null) {
                     // Double tap = view track
-                    openTrack(mCurrentTrack);
+                    openUrl(mCurrentTrack.getPermalinkUrl());
                 }
                 mLastCommandTime = time;
             }
             return null;
         }
 
+        // Terrible hack retrieve like a circular queue
         private Track getTrack() {
             if(mTracks == null || mTracks.size() == 0)
                 return null;
@@ -137,44 +176,15 @@ public class WallpaperDemoService extends WallpaperService {
             return mTracks.getFirst();
         }
 
-        private void buildModel(SoundCloudApi _api, String _genre, int _limit) {
-            Log.i(TAG, "buildModel()");
-
-            Observable<Track> observable = Observable.create(new GetTracksFunction(getApplicationContext(), _api, _genre, _limit));
-
-            // Cancel any existing subscription and reset state.
-            mScheduler.stop(); // Retain current waveform until new ones (no nasty pause during loading)
-            unsubscribe();
-            mTracks = new LinkedList<Track>();
-
-            mSubscription = observable.subscribeOn(Schedulers.newThread()).observeOn(AndroidSchedulers.mainThread())
-              .subscribe(new Action1<Track>() {
-                             @Override
-                             public void call(Track response) {
-                                 Log.i(TAG, "Emitted Track: " + response.getTitle());
-                                 mTracks.add(response);
-                                 mScheduler.start();
-                             }
-                         }, new Action1<Throwable>() {
-                             @Override
-                             public void call(Throwable error) {
-                                 Log.w(TAG, "Failed to fetch tracks");
-                                 // Have failed to initialise.
-                                 // TODO Depending on the error, start task to retry.
-                             }
-                         }
-              );
+        private Observable<Track> getApiTracks(SoundCloudApi _api, String _genre, int _limit) {
+            return Observable.create(new GetTracksFunction(getApplicationContext(), _api, _genre, _limit));
         }
 
-        private void unsubscribe() {
-            if(mSubscription != null) {
-                mSubscription.unsubscribe();
-                mSubscription = null;
-            }
-        }
-
-        public void drawImage() {
-            Log.i(TAG, "drawImage() - start");
+        /**
+         * Draws the current track or a placeholder on a canvas
+         */
+        public void drawTrack() {
+            Log.i(TAG, "drawTrack() - start");
 
             final SurfaceHolder holder = getSurfaceHolder();
             Canvas c = null;
@@ -191,24 +201,24 @@ public class WallpaperDemoService extends WallpaperService {
                 if(c != null)
                     holder.unlockCanvasAndPost(c);
             }
-            Log.i(TAG, "drawImage() - end");
+            Log.i(TAG, "drawTrack() - end");
         }
 
+        // Placeholder screen implementation
         private void drawPlaceholderOn(Canvas _canvas) {
             Log.i(TAG, "drawPlaceholderOn() - start");
             Paint textPaint = new Paint();
             textPaint.setColor(Color.WHITE);
             textPaint.setTextAlign(Paint.Align.CENTER);
+            textPaint.setTextSize(24);
             _canvas.drawColor(Color.LTGRAY);
             _canvas.drawText("Wallpaper Demo", _canvas.getWidth() / 2, _canvas.getHeight() / 2, textPaint);
         }
 
-        public void openTrack(Track _track) {
-            if(_track != null
-              && _track.getPermalinkUrl() != null) {
-                Log.i(TAG, "openTrack() => Attempt to open track at: "
-                  + _track.getPermalinkUrl());
-                Uri uri = Uri.parse(_track.getPermalinkUrl());
+        private void openUrl(String url) {
+            if(url != null) {
+                Log.i(TAG, "openUrl() => Attempt to open track at: " + url);
+                Uri uri = Uri.parse(url);
                 Intent openIntent = new Intent(Intent.ACTION_VIEW, uri);
                 openIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 startActivity(openIntent);
