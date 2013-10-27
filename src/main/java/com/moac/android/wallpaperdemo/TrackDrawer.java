@@ -1,6 +1,9 @@
 package com.moac.android.wallpaperdemo;
 
-import android.graphics.*;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.RectF;
 import android.util.Log;
 import com.moac.android.wallpaperdemo.model.Track;
 
@@ -15,8 +18,8 @@ public class TrackDrawer {
     private final Paint mBackgroundPaint;
     private final Paint mWaveformPaint;
     private final Paint mTextPaint;
-    private final float mColumnWidthPx;
-    private final float mColumnPaddingPx;
+    private final float mColumnWidthPx; // waveform column
+    private final float mColumnPaddingPx; // padding between columns
 
     public TrackDrawer(float _columnWidth, float _gap) {
         // Define Paint values once.
@@ -57,20 +60,31 @@ public class TrackDrawer {
         // Draw background
         _canvas.drawPaint(mBackgroundPaint);
 
-        // The number of columns that fit in the canvas with the desired column spacing
-        final int columns = (int) ((_canvas.getWidth() - 2f* (mColumnPaddingPx)) / (mColumnWidthPx + mColumnPaddingPx));
+        Log.d(TAG, "drawOn() - data width: " + waveform.length);
+        Log.d(TAG, "drawOn() - canvas width: " + _canvas.getWidth());
+        Log.d(TAG, "drawOn() - column width & padding width: " + mColumnWidthPx + " " + mColumnPaddingPx);
+
+        float drawableWidth = _canvas.getWidth() - 2f * mColumnPaddingPx;
+        Log.d(TAG, "drawOn() - useableWidth: " + drawableWidth);
+
+        // The number of whole columns that fit in the drawable width with the desired column spacing
+        final int columns = (int) (drawableWidth / (mColumnWidthPx + mColumnPaddingPx));
+        Log.d(TAG, "drawOn() - columns: " + columns);
+
+        // The remainder, we want to shift the columns to the centre of the available width.
+        float remainder = drawableWidth % columns;
+        Log.d(TAG, "drawOn() - remainder: " + remainder);
 
         // The number of datapoints that contribute to a column
         final int datapoints = waveform.length / columns;
+        Log.d(TAG, "drawOn() - datapoint per column: " + datapoints);
 
-        Log.v(TAG, "drawOn() - data width: " + waveform.length + " columns:" + columns);
-
-        // The display height to be used by the waveform
+        // Max height to be used by the waveform
         final int heightScalingFactor = _canvas.getHeight() / 3;
         final int centreLine = _canvas.getHeight() / 2;
 
         // Incrementing column borders
-        float left = mColumnPaddingPx;
+        float left = mColumnPaddingPx + (remainder / 2);
         float right = left + mColumnWidthPx;
 
         for(int i = 0; i < waveform.length; i += datapoints) {
