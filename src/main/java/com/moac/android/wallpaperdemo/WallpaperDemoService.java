@@ -53,7 +53,7 @@ public class WallpaperDemoService extends WallpaperService {
             Log.d(TAG, "onCreate()");
             super.onCreate(surfaceHolder);
             setTouchEventsEnabled(true);
-            SharedPreferences prefs =  PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
+            SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
             prefs.registerOnSharedPreferenceChangeListener(WallpaperEngine.this);
 
             Log.i(TAG, "Creating new WallpaperEngine instance");
@@ -79,48 +79,7 @@ public class WallpaperDemoService extends WallpaperService {
 
         @Override
         public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
-              Log.i(TAG, "onSharedPreferenceChanged() - Notified ");
-        }
-
-        private Track getTrack() {
-            if(mTracks == null || mTracks.size() == 0)
-                return null;
-
-            if(mTracks.size() == 1)
-                return mTracks.getFirst();
-
-            Track first = mTracks.removeFirst();
-            mTracks.addLast(first);
-            return mTracks.getFirst();
-        }
-
-        private void buildModel(SoundCloudApi _api, String _genre, int _limit) {
-            Log.i(TAG, "buildModel()");
-
-            Observable<Track> observable = Observable.create(new GetTracksFunction(getApplicationContext(), _api, _genre, _limit));
-
-            // Cancel any existing subscription and reset state.
-            mScheduler.stop(); // Retain current waveform until new ones (no nasty pause during loading)
-            unsubscribe();
-            mTracks = new LinkedList<Track>();
-
-            mSubscription = observable.subscribeOn(Schedulers.newThread()).observeOn(AndroidSchedulers.mainThread())
-              .subscribe(new Action1<Track>() {
-                             @Override
-                             public void call(Track response) {
-                                 Log.i(TAG, "Emitted Track: " + response.getTitle());
-                                 mTracks.add(response);
-                                 mScheduler.start();
-                             }
-                         }, new Action1<Throwable>() {
-                             @Override
-                             public void call(Throwable error) {
-                                 Log.w(TAG, "Failed to fetch tracks");
-                                 // Have failed to initialise.
-                                 // TODO Depending on the error, start task to retry.
-                             }
-                         }
-              );
+            Log.i(TAG, "onSharedPreferenceChanged() - Notified ");
         }
 
         @Override
@@ -166,6 +125,54 @@ public class WallpaperDemoService extends WallpaperService {
             return null;
         }
 
+        private Track getTrack() {
+            if(mTracks == null || mTracks.size() == 0)
+                return null;
+
+            if(mTracks.size() == 1)
+                return mTracks.getFirst();
+
+            Track first = mTracks.removeFirst();
+            mTracks.addLast(first);
+            return mTracks.getFirst();
+        }
+
+        private void buildModel(SoundCloudApi _api, String _genre, int _limit) {
+            Log.i(TAG, "buildModel()");
+
+            Observable<Track> observable = Observable.create(new GetTracksFunction(getApplicationContext(), _api, _genre, _limit));
+
+            // Cancel any existing subscription and reset state.
+            mScheduler.stop(); // Retain current waveform until new ones (no nasty pause during loading)
+            unsubscribe();
+            mTracks = new LinkedList<Track>();
+
+            mSubscription = observable.subscribeOn(Schedulers.newThread()).observeOn(AndroidSchedulers.mainThread())
+              .subscribe(new Action1<Track>() {
+                             @Override
+                             public void call(Track response) {
+                                 Log.i(TAG, "Emitted Track: " + response.getTitle());
+                                 mTracks.add(response);
+                                 mScheduler.start();
+                             }
+                         }, new Action1<Throwable>() {
+                             @Override
+                             public void call(Throwable error) {
+                                 Log.w(TAG, "Failed to fetch tracks");
+                                 // Have failed to initialise.
+                                 // TODO Depending on the error, start task to retry.
+                             }
+                         }
+              );
+        }
+
+        private void unsubscribe() {
+            if(mSubscription != null) {
+                mSubscription.unsubscribe();
+                mSubscription = null;
+            }
+        }
+
         public void drawImage() {
             Log.i(TAG, "drawImage() - start");
 
@@ -205,13 +212,6 @@ public class WallpaperDemoService extends WallpaperService {
                 Intent openIntent = new Intent(Intent.ACTION_VIEW, uri);
                 openIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 startActivity(openIntent);
-            }
-        }
-
-        private void unsubscribe() {
-            if(mSubscription != null) {
-                mSubscription.unsubscribe();
-                mSubscription = null;
             }
         }
     }
