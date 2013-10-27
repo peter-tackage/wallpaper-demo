@@ -22,20 +22,20 @@ public class GetTracksFunction implements Observable.OnSubscribeFunc<List<Track>
 
     private final Context mContext;
     private final SoundCloudApi mApi;
-    private final String mGenre;
+    private final String mSearch;
     private final int mLimit;
 
-    public GetTracksFunction(Context _context, SoundCloudApi _api, String _genre, int _limit) {
+    public GetTracksFunction(Context _context, SoundCloudApi _api, String _search, int _limit) {
         mContext = _context;
         mApi = _api;
-        mGenre = _genre;
+        mSearch = _search;
         mLimit = _limit;
     }
 
     @Override
-    public Subscription onSubscribe(Observer<? super List<Track>> observer) {
+    public Subscription onSubscribe(Observer<? super List<Track>> _observer) {
         try {
-            List<Track> tracks = mApi.getTracks(mGenre, mLimit);
+            List<Track> tracks = mApi.getTracks(mSearch, mLimit);
             List<Track> completeTracks = new ArrayList<Track>();
             // FIXME Even if we unsubscribe, it will still loop over all.
             // Or return a BooleanSubscription??
@@ -45,15 +45,15 @@ public class GetTracksFunction implements Observable.OnSubscribeFunc<List<Track>
                     float[] waveformData = new WaveformProcessor().transform(bitmap);
                     track.setWaveformData(waveformData);
                     completeTracks.add(track);
-                    observer.onNext(completeTracks);
+                    _observer.onNext(completeTracks);
                 } catch(IOException e) {
                     Log.w(TAG, "Failed to get Bitmap for track: " + track.getTitle());
                     // Don't bother telling observer, it's just one track that's failed.
                 }
             }
-            observer.onCompleted();
+            _observer.onCompleted();
         } catch(Exception e) {
-            observer.onError(e);
+            _observer.onError(e);
         }
 
         return Subscriptions.empty();

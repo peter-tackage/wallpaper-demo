@@ -27,34 +27,14 @@ public class NumberUtils {
         return _list.get(index);
     }
 
-//    public static float[] downSample(float[] _values, int _columns) {
-//        float[] result = new float[_columns];
-//        int datapoints = _values.length / _columns;
-//        System.out.println("Datapoint per column: " + datapoints);
-//
-//        System.out.println("Length is: " + _values.length);
-//        for(int x = 0; x < _values.length; x+=datapoints) {
-//            System.out.println("x is outer: " + x);
-//            float block = 0f;
-//            int size = _values.length % x == 0 ? datapoints : _values.length % x;
-//            int end = x + size;
-//            for(int y = x; y < end; y++) {
-//                   System.out.println("Y is: " + y);
-//                    block += _values[y];
-//                    size++;
+//    public Observable<Float> average(final Float[] values) {
+//        return Observable.averageFloats(Observable.create(new Observable.OnSubscribeFunc<List<Float>>() {
+//            @Override
+//            public Subscription onSubscribe(Observer<? super List<Float>> observer) {
+//                observer.onNext(Arrays.<Float>asList(values));
+//                observer.onCompleted();
+//                return Subscriptions.empty();
 //            }
-//            block = block / (float)size;
-//            System.out.println("block avg: " + block);
-//        }
-//
-//        return null;
-//    }
-//
-//    public static float avg(float[] _vals) {
-//       float total = 0;
-//       for(int i =0; i < _vals.length; i++) {
-//           total += _vals[i];
-//       }
-//       return total / (float)_vals.length;
+//        }));
 //    }
 }

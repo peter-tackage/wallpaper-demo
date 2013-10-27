@@ -52,9 +52,9 @@ public class WallpaperDemoService extends WallpaperService {
             0xFFA465C5, 0xFF5661DE, 0xFF4AB498, 0xFFFA7B68 };
 
         @Override
-        public void onCreate(SurfaceHolder surfaceHolder) {
+        public void onCreate(SurfaceHolder _surfaceHolder) {
             Log.d(TAG, "onCreate()");
-            super.onCreate(surfaceHolder);
+            super.onCreate(_surfaceHolder);
             setTouchEventsEnabled(true);
             SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
             prefs.registerOnSharedPreferenceChangeListener(WallpaperEngine.this);
@@ -94,11 +94,15 @@ public class WallpaperDemoService extends WallpaperService {
                           }
                       });
                 }
-            }, 0, 120, TimeUnit.SECONDS); // um, TimeUnit.SECONDS enum didn't exist until API Level 9!
+            }, 0, 1, TimeUnit.HOURS); // um, TimeUnit.SECONDS enum didn't exist until API Level 9!
+        }
+
+        private Observable<List<Track>> getApiTracks(SoundCloudApi _api, String _search, int _limit) {
+            return Observable.create(new GetTracksFunction(getApplicationContext(), _api, _search, _limit));
         }
 
         // TODO Restart may be required when changing search criteria.
-        public void scheduleDrawer() {
+        private void scheduleDrawer() {
             if(mDrawerSubscription != null)
                 return;
 
@@ -112,11 +116,11 @@ public class WallpaperDemoService extends WallpaperService {
                     mTrackDrawer.setColor(NumberUtils.getRandomElement(mPrettyColors));
                     draw();
                 }
-            }, 0, 10, TimeUnit.SECONDS);
+            }, 0, 60, TimeUnit.SECONDS);
         }
 
         @Override
-        public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
+        public void onSharedPreferenceChanged(SharedPreferences _sharedPreferences, String _key) {
             Log.i(TAG, "onSharedPreferenceChanged() - Notified ");
         }
 
@@ -130,18 +134,18 @@ public class WallpaperDemoService extends WallpaperService {
         }
 
         @Override
-        public void onSurfaceChanged(SurfaceHolder holder, int format,
-                                     int width, int height) {
-            super.onSurfaceChanged(holder, format, width, height);
-            Log.v(TAG, "onSurfaceChanged() Current surface size: " + width + "," + height);
+        public void onSurfaceChanged(SurfaceHolder _holder, int _format,
+                                     int _width, int _height) {
+            super.onSurfaceChanged(_holder, _format, _width, _height);
+            Log.v(TAG, "onSurfaceChanged() Current surface size: " + _width + "," + _height);
             // Redraw the current Track, this called on orientation change.
             draw();
         }
 
         @Override
-        public Bundle onCommand(String action, int x, int y, int z,
-                                Bundle extras, boolean resultRequested) {
-            if(action.equals(WallpaperManager.COMMAND_TAP)) {
+        public Bundle onCommand(String _action, int x, int y, int z,
+                                Bundle _extras, boolean _resultRequested) {
+            if(_action.equals(WallpaperManager.COMMAND_TAP)) {
                 long time = android.os.SystemClock.elapsedRealtime();
                 // Look for taps in the double-tap window (in ms)
                 if(((time - mLastCommandTime) < 500)
@@ -165,10 +169,6 @@ public class WallpaperDemoService extends WallpaperService {
             Track first = mTracks.removeFirst();
             mTracks.addLast(first);
             return mTracks.getFirst();
-        }
-
-        private Observable<List<Track>> getApiTracks(SoundCloudApi _api, String _genre, int _limit) {
-            return Observable.create(new GetTracksFunction(getApplicationContext(), _api, _genre, _limit));
         }
 
         /**
@@ -217,10 +217,10 @@ public class WallpaperDemoService extends WallpaperService {
         }
 
         // Asks framework to open the provided URL
-        private void openUrl(String url) {
-            if(url != null) {
-                Log.i(TAG, "openUrl() => Attempt to open track at: " + url);
-                Uri uri = Uri.parse(url);
+        private void openUrl(String _url) {
+            if(_url != null) {
+                Log.i(TAG, "openUrl() => Attempt to open track at: " + _url);
+                Uri uri = Uri.parse(_url);
                 Intent openIntent = new Intent(Intent.ACTION_VIEW, uri);
                 openIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 startActivity(openIntent);

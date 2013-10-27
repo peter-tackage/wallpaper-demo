@@ -3,7 +3,6 @@ package com.moac.android.wallpaperdemo;
 import android.app.Application;
 import android.net.Uri;
 import android.util.Log;
-
 import com.moac.android.wallpaperdemo.api.ScRequestInterceptor;
 import com.moac.android.wallpaperdemo.api.SoundCloudApi;
 import retrofit.RequestInterceptor;

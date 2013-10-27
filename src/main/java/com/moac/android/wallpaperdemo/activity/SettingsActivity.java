@@ -3,7 +3,6 @@ package com.moac.android.wallpaperdemo.activity;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.preference.PreferenceActivity;
-import android.preference.PreferenceFragment;
 import com.moac.android.wallpaperdemo.R;
 
 // TODO Make a HC+ version too.

@@ -89,8 +89,8 @@ public class TrackDrawer {
 
         for(int col = 0; col < columns; col++) {
             Log.v(TAG, "drawOn() - drawing column: " + col);
-            Log.v(TAG, "drawOn() - waveform value: " + waveform[col*datapoints]);
-            float columnLength = waveform[col*datapoints] * heightScalingFactor;
+            Log.v(TAG, "drawOn() - waveform value: " + waveform[col * datapoints]);
+            float columnLength = waveform[col * datapoints] * heightScalingFactor;
             float top = centreLine - (columnLength / 2);
             float bottom = top + columnLength;
 
@@ -112,12 +112,12 @@ public class TrackDrawer {
     }
 
     // Draws the circles on either top or bottom of the column
-    private void drawTails(Canvas _canvas, float left, float right, float initY, boolean isTop, int count) {
-        float startY = initY;
-        for(int i = 0; i < count; i++) {
-            startY = isTop ? startY - mColumnWidthPx : startY + mColumnWidthPx;
-            _canvas.drawCircle(left + ((right - left) / 2f), startY, mColumnWidthPx / 2f, mWaveformPaint);
-            startY = isTop ? startY - mColumnWidthPx : startY + mColumnWidthPx;  // Gap
+    private void drawTails(Canvas _canvas, float _left, float _right, float _initY, boolean _isTop, int _count) {
+        float startY = _initY;
+        for(int i = 0; i < _count; i++) {
+            startY = _isTop ? startY - mColumnWidthPx : startY + mColumnWidthPx;
+            _canvas.drawCircle(_left + ((_right - _left) / 2f), startY, mColumnWidthPx / 2f, mWaveformPaint);
+            startY = _isTop ? startY - mColumnWidthPx : startY + mColumnWidthPx;  // Gap
         }
     }
 }
