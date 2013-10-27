@@ -67,10 +67,10 @@ public class WallpaperDemoService extends WallpaperService {
                 public void run() {
                     Log.i(TAG, "run() Scheduler task callback ");
                     mCurrentTrack = getTrack();
-                    mTrackDrawer.setBackgroundColor(NumberUtils.getRandomElement(mPrettyColors));
+                    mTrackDrawer.setColor(NumberUtils.getRandomElement(mPrettyColors));
                     drawImage();
                 }
-            }, 30, TimeUnit.SECONDS);
+            }, 10, TimeUnit.SECONDS);
 
             // Configure and initialise model
             SoundCloudApi api = WallpaperApplication.getInstance().getSoundCloudApi();

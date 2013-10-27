@@ -29,21 +29,19 @@ public class TrackDrawer {
         mTextPaint.setColor(DEFAULT_TEXT_COLOR);
         mTextPaint.setTextAlign(Paint.Align.CENTER);
         mTextPaint.setAntiAlias(true);
-        mTextPaint.setTextSize(16);
+        mTextPaint.setTextSize(16); // TODO Factor in density
         mColumnWidthPx = _columnWidth;
         mColumnPaddingPx = _gap;
     }
 
-    public void setBackgroundColor(int _color) {
+    public void setColor(int _color) {
         mBackgroundPaint.setColor(_color);
-    }
-
-    public void setWaveformColor(int _color) {
-        mWaveformPaint.setColor(_color);
-    }
-
-    public void setTextColor(int _color) {
-        mTextPaint.setColor(_color);
+        float[] hsv = new float[3];
+        Color.colorToHSV(_color, hsv);
+        hsv[1] *= 0.5;
+        hsv[2] *= 1.5;
+        mWaveformPaint.setColor(Color.HSVToColor(hsv));
+        mTextPaint.setColor(Color.HSVToColor(hsv));
     }
 
     public void drawOn(Canvas _canvas, Track _track) {
@@ -76,7 +74,7 @@ public class TrackDrawer {
         float right = left + mColumnWidthPx;
 
         for(int i = 0; i < waveform.length; i += datapoints) {
-            Log.v(TAG, "drawOn() - drawing column: " + i);
+            Log.v(TAG, "drawOn() - drawing using datapoint: " + i);
             Log.v(TAG, "drawOn() - waveform value: " + waveform[i]);
             float columnLength = waveform[i] * heightScalingFactor;
             float top = centreLine - (columnLength / 2);
@@ -99,6 +97,7 @@ public class TrackDrawer {
         _canvas.drawText(title, _canvas.getWidth() / 2f, centreLine + (heightScalingFactor / 2f) + (2f * mColumnWidthPx) + 10, mTextPaint);
     }
 
+    // Draws the circles on either top or bottom of the column
     private void drawTails(Canvas _canvas, float left, float right, float initY, boolean isTop, int count) {
         float startY = initY;
         for(int i = 0; i < count; i++) {
