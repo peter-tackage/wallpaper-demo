@@ -13,9 +13,10 @@ import rx.Subscription;
 import rx.subscriptions.Subscriptions;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
-public class GetTracksFunction implements Observable.OnSubscribeFunc<Track> {
+public class GetTracksFunction implements Observable.OnSubscribeFunc<List<Track>> {
 
     private static final String TAG = GetTracksFunction.class.getSimpleName();
 
@@ -32,16 +33,19 @@ public class GetTracksFunction implements Observable.OnSubscribeFunc<Track> {
     }
 
     @Override
-    public Subscription onSubscribe(Observer<? super Track> observer) {
+    public Subscription onSubscribe(Observer<? super List<Track>> observer) {
         try {
             List<Track> tracks = mApi.getTracks(mGenre, mLimit);
+            List<Track> completeTracks = new ArrayList<Track>();
             // FIXME Even if we unsubscribe, it will still loop over all.
+            // Or return a BooleanSubscription??
             for(Track track : tracks) {
                 try {
                     Bitmap bitmap = Picasso.with(mContext).load(track.getWaveformUrl()).get();
                     float[] waveformData = new WaveformProcessor().transform(bitmap);
                     track.setWaveformData(waveformData);
-                    observer.onNext(track);
+                    completeTracks.add(track);
+                    observer.onNext(completeTracks);
                 } catch(IOException e) {
                     Log.w(TAG, "Failed to get Bitmap for track: " + track.getTitle());
                     // Don't bother telling observer, it's just one track that's failed.

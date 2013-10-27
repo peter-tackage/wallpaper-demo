@@ -23,7 +23,6 @@ import rx.android.concurrency.AndroidSchedulers;
 import rx.concurrency.Schedulers;
 import rx.util.functions.Action0;
 
-import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -45,6 +44,7 @@ public class WallpaperDemoService extends WallpaperService {
         private TrackDrawer mTrackDrawer;
         private Track mCurrentTrack;
         private LinkedList<Track> mTracks;
+        private int mDebugApiCalls = 0;
 
         // See http://dribbble.com/colors/<value>
         private final Integer[] mPrettyColors =
@@ -70,24 +70,18 @@ public class WallpaperDemoService extends WallpaperService {
             mPeriodicFetchSubscription = AndroidSchedulers.mainThread().schedulePeriodically(new Action0() {
                 @Override
                 public void call() {
-                    Log.i(TAG, "PeriodFetchSubscription - getting more tracks from API");
+                    Log.i(TAG, "PeriodFetchSubscription - ### NETWORK CALL ###");
+                    mDebugApiCalls++;
+                    // Fetch a new set of track & waveforms from the API
                     getApiTracks(api, "electronic", 10)
                       .subscribeOn(Schedulers.newThread()).observeOn(AndroidSchedulers.mainThread())
-                      .subscribe(new Observer<Track>() {
-
-                          boolean isFirst = true;
+                      .subscribe(new Observer<List<Track>>() {
 
                           @Override
-                          public void onNext(Track response) {
-                              Log.i(TAG, "Emitted Track: " + response.getTitle());
-                              if(isFirst) {
-                                  mTracks.clear();
-                              }
-                              mTracks.add(response);
-                              if(isFirst) {
-                                  startDrawer();
-                              }
-                              isFirst = false;
+                          public void onNext(List<Track> response) {
+                              Log.i(TAG, "Track list size: " + response.size());
+                              mTracks = new LinkedList<Track>(response);
+                              scheduleDrawer();
                           }
 
                           @Override
@@ -100,20 +94,23 @@ public class WallpaperDemoService extends WallpaperService {
                           }
                       });
                 }
-            }, 0, 2, TimeUnit.MINUTES);
+            }, 0, 120, TimeUnit.SECONDS); // um, TimeUnit.SECONDS enum didn't exist until API Level 9!
         }
 
-        public void startDrawer() {
-            Log.i(TAG, "startDrawer() - start the drawer subscription");
-            if(mDrawerSubscription != null)
-                mDrawerSubscription.unsubscribe();
+        // TODO Restart may be required when changing search criteria.
+        public void scheduleDrawer() {
+            if(mDrawerSubscription == null)
+                return;
+
+            Log.i(TAG, "scheduleDrawer() - start the drawer subscription");
+
             mDrawerSubscription = AndroidSchedulers.mainThread().schedulePeriodically(new Action0() {
                 @Override
                 public void call() {
                     Log.i(TAG, "call() - Drawer");
                     mCurrentTrack = getTrack();
                     mTrackDrawer.setColor(NumberUtils.getRandomElement(mPrettyColors));
-                    drawTrack();
+                    draw();
                 }
             }, 0, 10, TimeUnit.SECONDS);
         }
@@ -133,18 +130,12 @@ public class WallpaperDemoService extends WallpaperService {
         }
 
         @Override
-        public void onVisibilityChanged(boolean _isVisible) {
-            Log.v(TAG, "onVisibilityChanged() isVisible: " + _isVisible);
-            // TODO Not really sure if I should unsubscribe.
-        }
-
-        @Override
         public void onSurfaceChanged(SurfaceHolder holder, int format,
                                      int width, int height) {
             super.onSurfaceChanged(holder, format, width, height);
             Log.v(TAG, "onSurfaceChanged() Current surface size: " + width + "," + height);
             // Redraw the current Track, this called on orientation change.
-            drawTrack();
+            draw();
         }
 
         @Override
@@ -176,15 +167,15 @@ public class WallpaperDemoService extends WallpaperService {
             return mTracks.getFirst();
         }
 
-        private Observable<Track> getApiTracks(SoundCloudApi _api, String _genre, int _limit) {
+        private Observable<List<Track>> getApiTracks(SoundCloudApi _api, String _genre, int _limit) {
             return Observable.create(new GetTracksFunction(getApplicationContext(), _api, _genre, _limit));
         }
 
         /**
          * Draws the current track or a placeholder on a canvas
          */
-        public void drawTrack() {
-            Log.i(TAG, "drawTrack() - start");
+        public void draw() {
+            Log.i(TAG, "draw() - start");
 
             final SurfaceHolder holder = getSurfaceHolder();
             Canvas c = null;
@@ -196,12 +187,13 @@ public class WallpaperDemoService extends WallpaperService {
                     } else {
                         drawPlaceholderOn(c);
                     }
+                    drawDebug(c);
                 }
             } finally {
                 if(c != null)
                     holder.unlockCanvasAndPost(c);
             }
-            Log.i(TAG, "drawTrack() - end");
+            Log.i(TAG, "draw() - end");
         }
 
         // Placeholder screen implementation
@@ -215,6 +207,17 @@ public class WallpaperDemoService extends WallpaperService {
             _canvas.drawText("Wallpaper Demo", _canvas.getWidth() / 2, _canvas.getHeight() / 2, textPaint);
         }
 
+        private void drawDebug(Canvas _canvas) {
+            Log.i(TAG, "drawDebug() - start");
+            Paint textPaint = new Paint();
+            textPaint.setColor(Color.BLACK);
+            textPaint.setTextAlign(Paint.Align.CENTER);
+            textPaint.setTextSize(24);
+            String msg = String.format("API calls: %d, tracks: %d", mDebugApiCalls, mTracks.size());
+            _canvas.drawText(msg, 20, 20, textPaint);
+        }
+
+        // Asks framework to open the provided URL
         private void openUrl(String url) {
             if(url != null) {
                 Log.i(TAG, "openUrl() => Attempt to open track at: " + url);
