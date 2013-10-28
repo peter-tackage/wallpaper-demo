@@ -3,16 +3,31 @@
   android:title="@string/wallpaper_settings"
   android:key="wallpaper_settings">
   <EditTextPreference
-    android:key="@string/genres_preference"
-    android:title="@string/genres_preference_title"
-    android:hint="electronic"
-    android:summary="@string/genres_preference_summary"
-    android:dialogTitle="@string/dialog_title_genres_preference" />
+    android:key="@string/search_terms_preference"
+    android:title="@string/search_terms_preference_title"
+    android:hint="E.g. electronic"
+    android:summary="@string/search_terms_preference_summary"
+    android:dialogTitle="@string/dialog_title_search_terms_preference" />
   <ListPreference
-    android:title="@string/refresh_preference_title"
-    android:summary="@string/refresh_preference_summary"
-    android:key="@string/reload_preference"
+    android:title="@string/change_rate_preference_title"
+    android:summary="@string/change_rate_preference_summary"
+    android:key="@string/change_rate_preference"
     android:defaultValue="1"
-    android:entries="@array/changePeriodEntries"
-    android:entryValues="@array/changePeriodValues" />
+    android:entries="@array/changeRateEntries"
+    android:entryValues="@array/changeRateValues" />
+  <ListPreference
+    android:title="@string/reload_rate_preference_title"
+    android:summary="@string/reload_rate_preference_summary"
+    android:key="@string/reload_rate_preference"
+    android:defaultValue="60"
+    android:entries="@array/reloadRateEntries"
+    android:entryValues="@array/reloadRateValues" />
+  <ListPreference
+    android:title="@string/batching_preference_title"
+    android:summary="@string/batching_preference_summary"
+    android:key="@string/batching_preference"
+    android:defaultValue="10"
+    android:entries="@array/batchingEntries"
+    android:entryValues="@array/batchingValues" />
+
 </PreferenceScreen>

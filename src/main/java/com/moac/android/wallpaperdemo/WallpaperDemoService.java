@@ -1,13 +1,17 @@
 package com.moac.android.wallpaperdemo;
 
 import android.app.WallpaperManager;
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.net.ConnectivityManager;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.preference.PreferenceManager;
 import android.service.wallpaper.WallpaperService;
 import android.util.Log;
@@ -39,17 +43,34 @@ public class WallpaperDemoService extends WallpaperService {
     protected class WallpaperEngine extends Engine implements SharedPreferences.OnSharedPreferenceChangeListener {
 
         private long mLastCommandTime;
+        private SoundCloudApi mApi;
         private Subscription mPeriodicFetchSubscription;
+        private Subscription mApiTrackSubscription;
         private Subscription mDrawerSubscription;
         private TrackDrawer mTrackDrawer;
         private Track mCurrentTrack;
         private LinkedList<Track> mTracks;
-        private int mDebugApiCalls = 0;
+        private Handler mHandler;
+        private Runnable mSleeping = new Runnable() {
+            @Override
+            public void run() {
+                if(mPeriodicFetchSubscription != null) {
+                    Log.i(TAG, "Unsubscribing from API due to inactivity");
+                    mPeriodicFetchSubscription.unsubscribe();
+                    mPeriodicFetchSubscription = null;
+                }
+            }
+        };
 
         // See http://dribbble.com/colors/<value>
         private final Integer[] mPrettyColors =
           { 0xFF434B52, 0xFF54B395, 0xFFD1654C, 0xFFD6B331, 0xFF3D4348,
             0xFFA465C5, 0xFF5661DE, 0xFF4AB498, 0xFFFA7B68 };
+
+        // Debug info
+        private int mDebugApiCalls = 0;
+        private int mDebugBlockedApiCalls = 0;
+        private int mDebugFailedApiCalls = 0;
 
         @Override
         public void onCreate(SurfaceHolder _surfaceHolder) {
@@ -61,19 +82,33 @@ public class WallpaperDemoService extends WallpaperService {
 
             Log.i(TAG, "Creating new WallpaperEngine instance");
 
+            mHandler = new Handler();
+
             // Configure the TrackDrawer
             mTrackDrawer = new TrackDrawer(10, 10);
             mTracks = new LinkedList<Track>();
 
             // Configure and initialise model
-            final SoundCloudApi api = WallpaperApplication.getInstance().getSoundCloudApi();
-            mPeriodicFetchSubscription = AndroidSchedulers.mainThread().schedulePeriodically(new Action0() {
+            mApi = WallpaperApplication.getInstance().getSoundCloudApi();
+            mPeriodicFetchSubscription = getPeriodicFetchSubscription(mApi);
+        }
+
+        private Observable<List<Track>> getApiTracks(SoundCloudApi _api, String _search, int _limit) {
+            return Observable.create(new GetTracksFunction(getApplicationContext(), _api, _search, _limit));
+        }
+
+        private Subscription getPeriodicFetchSubscription(final SoundCloudApi api) {
+            return AndroidSchedulers.mainThread().schedulePeriodically(new Action0() {
                 @Override
                 public void call() {
                     Log.i(TAG, "PeriodFetchSubscription - ### NETWORK CALL ###");
+                    if(!isNetworkAvailable()) {
+                        mDebugBlockedApiCalls++;
+                        return;
+                    }
                     mDebugApiCalls++;
                     // Fetch a new set of track & waveforms from the API
-                    getApiTracks(api, "electronic", 10)
+                    mApiTrackSubscription = getApiTracks(api, "electronic", 10)
                       .subscribeOn(Schedulers.newThread()).observeOn(AndroidSchedulers.mainThread())
                       .subscribe(new Observer<List<Track>>() {
 
@@ -91,14 +126,11 @@ public class WallpaperDemoService extends WallpaperService {
                           public void onError(Throwable e) {
                               Log.w(TAG, "PeriodFetchSubscription#onError()", e);
                               // TODO Display message if nothing else to show.
+                              mDebugFailedApiCalls++;
                           }
                       });
                 }
-            }, 0, 1, TimeUnit.HOURS); // um, TimeUnit.SECONDS enum didn't exist until API Level 9!
-        }
-
-        private Observable<List<Track>> getApiTracks(SoundCloudApi _api, String _search, int _limit) {
-            return Observable.create(new GetTracksFunction(getApplicationContext(), _api, _search, _limit));
+            }, 0, 60, TimeUnit.SECONDS); // um, TimeUnit.MINUTES enum didn't exist until API Level 9!
         }
 
         // TODO Restart may be required when changing search criteria.
@@ -116,7 +148,7 @@ public class WallpaperDemoService extends WallpaperService {
                     mTrackDrawer.setColor(NumberUtils.getRandomElement(mPrettyColors));
                     draw();
                 }
-            }, 0, 60, TimeUnit.SECONDS);
+            }, 0, 10, TimeUnit.SECONDS);
         }
 
         @Override
@@ -129,6 +161,8 @@ public class WallpaperDemoService extends WallpaperService {
             Log.d(TAG, "onDestroy()");
             if(mDrawerSubscription != null)
                 mDrawerSubscription.unsubscribe();
+            if(mApiTrackSubscription != null)
+                mApiTrackSubscription.unsubscribe();
             mPeriodicFetchSubscription.unsubscribe();
             super.onDestroy();
         }
@@ -156,6 +190,31 @@ public class WallpaperDemoService extends WallpaperService {
                 mLastCommandTime = time;
             }
             return null;
+        }
+
+        @Override
+        public void onVisibilityChanged(boolean visible) {
+            super.onVisibilityChanged(visible);
+            /**
+             * If the canvas is not visible, give us a deadline until we stop polling the API
+             * there no point downloading data if they're not going to be seen.
+             *
+             * Don't stop the images though, that's relatively benign.
+             *
+             * TODO Deadline should be a function of the polling rate.
+             */
+            if(!visible) {
+                Log.i(TAG, "Preparing API subscription for sleep");
+                mHandler.postDelayed(mSleeping, TimeUnit.MILLISECONDS.convert(120, TimeUnit.SECONDS));
+            } else {
+                // And we're back! Cancel the deadline, resubscribe if it expired.
+                Log.i(TAG, "Cancelling API subscription sleep deadline");
+                mHandler.removeCallbacks(mSleeping);
+                if(mPeriodicFetchSubscription == null) {
+                    Log.i(TAG, "Restarting API subscription sleep deadline");
+                    mPeriodicFetchSubscription = getPeriodicFetchSubscription(mApi);
+                }
+            }
         }
 
         // Terrible hack retrieve like a circular queue
@@ -212,11 +271,11 @@ public class WallpaperDemoService extends WallpaperService {
             Paint textPaint = new Paint();
             textPaint.setColor(Color.BLACK);
             textPaint.setTextSize(24);
-            String msg = String.format("API calls: %d, tracks: %d", mDebugApiCalls, mTracks.size());
-            _canvas.drawText(msg, 0, 50, textPaint);
+            String msg = String.format("API calls made: %d, blocked %d, failed %d, tracks: %d", mDebugApiCalls, mDebugBlockedApiCalls, mDebugFailedApiCalls, mTracks.size());
+            _canvas.drawText(msg, 0, _canvas.getHeight(), textPaint);
         }
 
-        // Asks framework to open the provided URL
+        // Asks framework to open the provided URL via Intent
         private void openUrl(String _url) {
             if(_url != null) {
                 Log.i(TAG, "openUrl() => Attempt to open track at: " + _url);
@@ -224,6 +283,20 @@ public class WallpaperDemoService extends WallpaperService {
                 Intent openIntent = new Intent(Intent.ACTION_VIEW, uri);
                 openIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 startActivity(openIntent);
+            }
+        }
+
+        /**
+         * Return true if the network is available and data transfer is allowed.
+         */
+        private boolean isNetworkAvailable() {
+            ConnectivityManager connMgr = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+            if(Build.VERSION.SDK_INT < Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
+                //noinspection deprecation
+                return connMgr.getBackgroundDataSetting();
+            } else {
+                return connMgr.getActiveNetworkInfo() != null
+                  && connMgr.getActiveNetworkInfo().isConnected();
             }
         }
     }

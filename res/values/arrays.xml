@@ -1,13 +1,37 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-  <string-array name="changePeriodValues">
+  <string-array name="changeRateValues">
     <item>1</item>
     <item>30</item>
     <item>60</item>
   </string-array>
-  <string-array name="changePeriodEntries">
+  <string-array name="changeRateEntries">
     <item>Every minute</item>
     <item>30 minutes</item>
     <item>1 hour</item>
+  </string-array>
+  <string-array name="batchingEntries">
+    <item>5</item>
+    <item>10</item>
+    <item>25</item>
+  </string-array>
+  <string-array name="batchingValues">
+    <item>5</item>
+    <item>10</item>
+    <item>25</item>
+  </string-array>
+  <string-array name="reloadRateEntries">
+    <item>Never</item>
+    <item>30 minutes</item>
+    <item>1 hour</item>
+    <item>12 hours</item>
+    <item>1 day</item>
+  </string-array>
+  <string-array name="reloadRateValues">
+    <item>-1</item>
+    <item>30</item>
+    <item>60</item>
+    <item>720</item>
+    <item>1440</item>
   </string-array>
 </resources>

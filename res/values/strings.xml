@@ -2,12 +2,18 @@
 <resources>
   <string name="app_name">Wallpaper Demo</string>
   <string name="wallpaper_settings">Wallpaper Settings</string>
-  <string name="genres_preference_title">Genres and Tags</string>
-  <string name="genres_preference_summary">"The types of sound waveforms to show"</string>
-  <string name="dialog_title_genres_preference">Genre</string>
-  <string name="refresh_preference_title">Waveform Change Rate</string>
-  <string name="refresh_preference_summary">How often the waveform changes</string>
-  <string name="reload_preference">reload_preference</string>
-  <string name="genres_preference">genres_preference</string>
+  <string name="search_terms_preference_title">Search Terms</string>
+  <string name="search_terms_preference_summary">"Search terms to find interesting waveforms"</string>
+  <string name="dialog_title_search_terms_preference">Search Terms</string>
+  <string name="change_rate_preference_title">Waveform Change Rate</string>
+  <string name="change_rate_preference_summary">How often the waveform changes</string>
+  <string name="change_rate_preference">change_rate_preference</string>
+  <string name="search_terms_preference">search_term_preference</string>
   <string name="wallpaper_description">Shows SoundCloud waveforms that change periodically</string>
+  <string name="reload_rate_preference_title">Reload Rate</string>
+  <string name="reload_rate_preference_summary">How often new waveforms should be downloaded</string>
+  <string name="reload_rate_preference">reload_rate_preference</string>
+  <string name="batching_preference_title">Limits</string>
+  <string name="batching_preference_summary">How many waveforms should downloaded at once</string>
+  <string name="batching_preference">batching_preference</string>
 </resources>

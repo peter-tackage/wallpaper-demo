@@ -6,6 +6,7 @@ import android.preference.PreferenceActivity;
 import com.moac.android.wallpaperdemo.R;
 
 // TODO Make a HC+ version too.
+@SuppressWarnings("deprecation")
 public class SettingsActivity extends PreferenceActivity implements SharedPreferences.OnSharedPreferenceChangeListener {
 
     @Override
