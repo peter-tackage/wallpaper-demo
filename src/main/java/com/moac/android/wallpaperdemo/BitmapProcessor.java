@@ -5,9 +5,7 @@ import android.graphics.Bitmap;
 public interface BitmapProcessor {
 
     /**
-     * Do whatever processing we want to make the image look good.
-     *
-     * @param _bitmap
+     * Extract the one dimensional data from the bitmap
      */
     public float[] transform(Bitmap _bitmap);
 }
