@@ -207,12 +207,11 @@ public class WallpaperDemoService extends WallpaperService {
              * If the canvas is not visible, set a deadline for visibility or
              * cancel the subscription: don't downloading data if it's not likely
              * to be seen.
-             *             *
-             * TODO Deadline should be a function of the polling rate.
+             *
              */
             if(!visible) {
                 Log.i(TAG, "Preparing API subscription for sleep");
-                mHandler.postDelayed(mSleeping, TimeUnit.MILLISECONDS.convert(120, TimeUnit.SECONDS));
+                mHandler.postDelayed(mSleeping, TimeUnit.MILLISECONDS.convert(mReloadRatePref, TimeUnit.SECONDS));
             } else {
                 // And we're back! Cancel the deadline, resubscribe if it expired.
                 Log.i(TAG, "Cancelling API subscription sleep deadline");
