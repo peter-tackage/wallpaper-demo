@@ -26,15 +26,15 @@ public class WallpaperApplication extends Application {
     public WallpaperApplication() {
         super();
         Log.d(TAG, "Constructing WallpaperApplication");
-        if(sInstance == null)
+        if(sInstance == null) {
             sInstance = this; // init self singleton.
+        }
     }
 
     @Override
     public void onCreate() {
         Log.d(TAG, "onCreate() - start");
         super.onCreate();
-        //   applicationGraph = ObjectGraph.create(getModules().toArray());
         mSoundCloudApi = createApiClient();
     }
 
@@ -76,12 +76,4 @@ public class WallpaperApplication extends Application {
     public static WallpaperApplication getInstance() { return sInstance; }
 
     public SoundCloudApi getSoundCloudApi() { return mSoundCloudApi; }
-
-//    protected List<Object> getModules() {
-//        return Arrays.<Object>asList(new AndroidModule(this), new ApiModule());
-//    }
-
-    //  ObjectGraph getApplicationGraph() {
-    //      return applicationGraph;
-    //  }
 }
