@@ -33,7 +33,7 @@
       <meta-data android:name="android.service.wallpaper" android:resource="@xml/wallpaper"/>
     </service>
 
-    <activity android:exported="true" android:label="@string/wallpaper_settings" android:name=".activity.SettingsActivity">
+    <activity android:exported="true" android:label="@string/wallpaper_settings_title" android:name=".activity.SettingsActivity">
     </activity>
 
   </application>
