@@ -33,7 +33,6 @@ import java.util.concurrent.TimeUnit;
 public class WallpaperDemoService extends WallpaperService {
 
     private static final String TAG = WallpaperDemoService.class.getSimpleName();
-    private static final String SHARED_PREFS_NAME = "wallpaper_settings";
 
     @Override
     public Engine onCreateEngine() {
@@ -42,9 +41,8 @@ public class WallpaperDemoService extends WallpaperService {
 
     protected class WallpaperEngine extends Engine implements SharedPreferences.OnSharedPreferenceChangeListener {
 
-        private SharedPreferences mPrefs;
         private String mSearchPref;
-        private int mChangeRatePref;
+        private int mDrawRatePref;
         private int mReloadRatePref;
         private int mBatchingPref;
 
@@ -94,9 +92,9 @@ public class WallpaperDemoService extends WallpaperService {
             // Configure and initialise model
             mApi = WallpaperApplication.getInstance().getSoundCloudApi();
 
-            mPrefs = WallpaperDemoService.this.getSharedPreferences(SHARED_PREFS_NAME, 0);
-            mPrefs.registerOnSharedPreferenceChangeListener(this);
-            onSharedPreferenceChanged(mPrefs, null);  // triggers the start
+            SharedPreferences prefs = WallpaperDemoService.this.getSharedPreferences(getString(R.string.wallpaper_settings_key), 0);
+            prefs.registerOnSharedPreferenceChangeListener(this);
+            onSharedPreferenceChanged(prefs, null);  // triggers the start
         }
 
         private Observable<List<Track>> getApiTracks(SoundCloudApi _api, String _search, int _limit) {
@@ -105,14 +103,16 @@ public class WallpaperDemoService extends WallpaperService {
 
         private Subscription getPeriodicFetchSubscription(final SoundCloudApi api, int reloadRate,
                                                           final int limit, final String search, final int drawRate) {
+            Log.i(TAG, "getPeriodicFetchSubscription() - reload: " + reloadRate + ", limit: " + limit + ", search: " + search + ", drawRate: " + drawRate);
             return AndroidSchedulers.mainThread().schedulePeriodically(new Action0() {
                 @Override
                 public void call() {
-                    Log.i(TAG, "PeriodFetchSubscription - ### NETWORK CALL ###");
                     if(!isNetworkAvailable()) {
+                        Log.i(TAG, "getPeriodicFetchSubscription() - network unavailable");
                         mDebugBlockedApiCalls++;
                         return;
                     }
+                    Log.i(TAG, "getPeriodicFetchSubscription - ### POTENTIAL NETWORK CALL ###");
                     mDebugApiCalls++;
                     // Fetch a new set of track & waveforms from the API
                     mApiTrackSubscription = getApiTracks(api, search, limit)
@@ -159,13 +159,14 @@ public class WallpaperDemoService extends WallpaperService {
 
         @Override
         public void onSharedPreferenceChanged(SharedPreferences prefs, String _key) {
-            Log.i(TAG, "onSharedPreferenceChanged() - Notified ");
+            Log.i(TAG, "onSharedPreferenceChanged() - Notified: " + prefs);
+            // integer-arrays don't work:  http://code.google.com/p/android/issues/detail?id=2096
             mSearchPref = prefs.getString("search_term_preference", "");
-            mChangeRatePref = prefs.getInt("change_rate_preference", 60);
-            mReloadRatePref = prefs.getInt("reload_rate_preference", 3600);
-            mBatchingPref = prefs.getInt("batching_preference", 10);
+            mDrawRatePref = Integer.parseInt(prefs.getString("change_rate_preference", "60"));
+            mReloadRatePref = Integer.parseInt(prefs.getString("reload_rate_preference", "3600"));
+            mBatchingPref = Integer.parseInt(prefs.getString("batching_preference", "10"));
             unsubscribe();
-            mPeriodicFetchSubscription = getPeriodicFetchSubscription(mApi, mReloadRatePref, mBatchingPref, mSearchPref, mChangeRatePref);
+            mPeriodicFetchSubscription = getPeriodicFetchSubscription(mApi, mReloadRatePref, mBatchingPref, mSearchPref, mDrawRatePref);
         }
 
         @Override
@@ -201,16 +202,16 @@ public class WallpaperDemoService extends WallpaperService {
         }
 
         @Override
-        public void onVisibilityChanged(boolean visible) {
-            super.onVisibilityChanged(visible);
+        public void onVisibilityChanged(boolean isVisible) {
+            super.onVisibilityChanged(isVisible);
             /**
-             * If the canvas is not visible, set a deadline for visibility or
-             * cancel the subscription: don't downloading data if it's not likely
-             * to be seen.
-             *
+             * If the canvas is not visible, set a deadline for visibility that
+             * if reached will cancel the subscription: don't download data that
+             * is not likely to be seen
              */
-            if(!visible) {
-                Log.i(TAG, "Preparing API subscription for sleep");
+            Log.d(TAG, "onVisibilityChanged() isVisible: " + isVisible);
+            if(!isVisible) {
+                Log.i(TAG, "Preparing API subscription for possible sleep");
                 mHandler.postDelayed(mSleeping, TimeUnit.MILLISECONDS.convert(mReloadRatePref, TimeUnit.SECONDS));
             } else {
                 // And we're back! Cancel the deadline, resubscribe if it expired.
@@ -218,7 +219,8 @@ public class WallpaperDemoService extends WallpaperService {
                 mHandler.removeCallbacks(mSleeping);
                 if(mPeriodicFetchSubscription == null) {
                     Log.i(TAG, "Restarting API subscription sleep deadline");
-                    mPeriodicFetchSubscription = getPeriodicFetchSubscription(mApi, mReloadRatePref, mBatchingPref, mSearchPref, mChangeRatePref);
+                    mPeriodicFetchSubscription =
+                      getPeriodicFetchSubscription(mApi, mReloadRatePref, mBatchingPref, mSearchPref, mDrawRatePref);
                 }
             }
         }

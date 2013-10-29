@@ -13,7 +13,7 @@ public class SettingsActivity extends PreferenceActivity implements SharedPrefer
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         getPreferenceManager().setSharedPreferencesName(
-          getString(R.string.wallpaper_settings));
+          getString(R.string.wallpaper_settings_key));
         addPreferencesFromResource(R.xml.settings);
         getPreferenceManager().getSharedPreferences()
           .registerOnSharedPreferenceChangeListener(this);

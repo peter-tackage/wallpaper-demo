@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
   <string name="app_name">Wallpaper Demo</string>
-  <string name="wallpaper_settings">Wallpaper Settings</string>
+  <string name="wallpaper_settings_title">Wallpaper Settings</string>
   <string name="search_terms_preference_title">Search Terms</string>
   <string name="search_terms_preference_summary">"Search terms to find interesting waveforms"</string>
   <string name="dialog_title_search_terms_preference">Search Terms</string>
@@ -17,4 +17,5 @@
   <string name="batching_preference_summary">How many waveforms should downloaded at once</string>
   <string name="batching_preference">batching_preference</string>
   <string name="search_terms_hint">E.g. electronic</string>
+  <string name="wallpaper_settings_key">wallpaper_settings</string>
 </resources>

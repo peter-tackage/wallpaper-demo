@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
-  android:title="@string/wallpaper_settings"
-  android:key="wallpaper_settings">
+  android:title="@string/wallpaper_settings_title"
+  android:key="@string/wallpaper_settings_key">
   <EditTextPreference
     android:title="@string/search_terms_preference_title"
     android:summary="@string/search_terms_preference_summary"

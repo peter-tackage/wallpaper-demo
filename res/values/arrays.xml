@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+  <!-- All string-array due to bug: http://code.google.com/p/android/issues/detail?id=2096 -->
   <string-array name="changeRateValues">
     <item>60</item>
     <item>1800</item>
