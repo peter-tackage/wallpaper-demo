@@ -33,21 +33,20 @@
     "license": "all-rights-reserved",
     "uri": "https://api.soundcloud.com/tracks/99801677",
     "user": {
-      "id": 18402377,
-      "kind": "user",
-      "permalink": "niko-nikiosdj",
-      "username": "NIV DJ [official]",
-      "uri": "https://api.soundcloud.com/users/18402377",
-      "permalink_url": "http://soundcloud.com/niko-nikiosdj",
-      "avatar_url": "https://i1.sndcdn.com/avatars-000045447140-w7r3d2-large.jpg?cc07a88"
+        "id": 18402377,
+        "kind": "user",
+        "permalink": "niko-nikiosdj",
+        "username": "NIV DJ [official]",
+        "uri": "https://api.soundcloud.com/users/18402377",
+        "permalink_url": "http://soundcloud.com/niko-nikiosdj",
+        "avatar_url": "https://i1.sndcdn.com/avatars-000045447140-w7r3d2-large.jpg?cc07a88"
     },
     "permalink_url": "http://soundcloud.com/niko-nikiosdj/dj-niko-force",
     "artwork_url": "https://i1.sndcdn.com/artworks-000052237226-1guyjw-large.jpg?cc07a88",
     "waveform_url": "https://w1.sndcdn.com/sPNv4LFoR9b7_m.png",
     "stream_url": "https://api.soundcloud.com/tracks/99801677/stream",
     "playback_count": 0,
-    "download_count": 0
-    ,
+    "download_count": 0,
     "favoritings_count": 0,
     "comment_count": 0,
     "attachments_uri": "https://api.soundcloud.com/tracks/99801677/attachments"
