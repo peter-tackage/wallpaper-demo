@@ -16,16 +16,16 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class GetTracksFunction implements Observable.OnSubscribeFunc<List<Track>> {
+public class GetTracks implements Observable.OnSubscribeFunc<List<Track>> {
 
-    private static final String TAG = GetTracksFunction.class.getSimpleName();
+    private static final String TAG = GetTracks.class.getSimpleName();
 
     private final Context mContext;
     private final SoundCloudApi mApi;
     private final String mSearch;
     private final int mLimit;
 
-    public GetTracksFunction(Context _context, SoundCloudApi _api, String _search, int _limit) {
+    public GetTracks(Context _context, SoundCloudApi _api, String _search, int _limit) {
         mContext = _context;
         mApi = _api;
         mSearch = _search;
@@ -37,8 +37,6 @@ public class GetTracksFunction implements Observable.OnSubscribeFunc<List<Track>
         try {
             List<Track> tracks = mApi.getTracks(mSearch, mLimit);
             List<Track> completeTracks = new ArrayList<Track>();
-            // FIXME Even if we unsubscribe, it will still loop over all.
-            // Or return a BooleanSubscription??
             for(Track track : tracks) {
                 try {
                     Bitmap bitmap = Picasso.with(mContext).load(track.getWaveformUrl()).get();

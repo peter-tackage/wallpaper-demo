@@ -16,7 +16,7 @@ import android.service.wallpaper.WallpaperService;
 import android.util.Log;
 import android.view.SurfaceHolder;
 import com.moac.android.wallpaperdemo.api.SoundCloudApi;
-import com.moac.android.wallpaperdemo.api.rx.GetTracksFunction;
+import com.moac.android.wallpaperdemo.api.rx.GetTracks;
 import com.moac.android.wallpaperdemo.model.Track;
 import com.moac.android.wallpaperdemo.util.NumberUtils;
 import rx.Observable;
@@ -77,11 +77,9 @@ public class WallpaperDemoService extends WallpaperService {
 
         @Override
         public void onCreate(SurfaceHolder _surfaceHolder) {
-            Log.d(TAG, "onCreate()");
+            Log.i(TAG, "onCreate() - Creating new WallpaperEngine instance");
             super.onCreate(_surfaceHolder);
             setTouchEventsEnabled(true);
-
-            Log.i(TAG, "Creating new WallpaperEngine instance");
 
             mHandler = new Handler();
 
@@ -98,21 +96,21 @@ public class WallpaperDemoService extends WallpaperService {
         }
 
         private Observable<List<Track>> getApiTracks(SoundCloudApi _api, String _search, int _limit) {
-            return Observable.create(new GetTracksFunction(getApplicationContext(), _api, _search, _limit));
+            return Observable.create(new GetTracks(getApplication(), _api, _search, _limit));
         }
 
-        private Subscription getPeriodicFetchSubscription(final SoundCloudApi api, int reloadRate,
-                                                          final int limit, final String search, final int drawRate) {
-            Log.i(TAG, "getPeriodicFetchSubscription() - reload: " + reloadRate + ", limit: " + limit + ", search: " + search + ", drawRate: " + drawRate);
+        private Subscription getReloadSubscription(final SoundCloudApi api, int reloadRate,
+                                                   final int limit, final String search, final int drawRate) {
+            Log.i(TAG, "getReloadSubscription() - reload: " + reloadRate + ", limit: " + limit + ", search: " + search + ", drawRate: " + drawRate);
             return AndroidSchedulers.mainThread().schedulePeriodically(new Action0() {
                 @Override
                 public void call() {
                     if(!isNetworkAvailable()) {
-                        Log.i(TAG, "getPeriodicFetchSubscription() - network unavailable");
+                        Log.i(TAG, "getReloadSubscription() - network unavailable");
                         mDebugBlockedApiCalls++;
                         return;
                     }
-                    Log.i(TAG, "getPeriodicFetchSubscription - ### POTENTIAL NETWORK CALL ###");
+                    Log.i(TAG, "getReloadSubscription() - ### POTENTIAL NETWORK CALL ###");
                     mDebugApiCalls++;
                     // Fetch a new set of track & waveforms from the API
                     mApiTrackSubscription = getApiTracks(api, search, limit)
@@ -123,7 +121,9 @@ public class WallpaperDemoService extends WallpaperService {
                           public void onNext(List<Track> response) {
                               Log.i(TAG, "Track list size: " + response.size());
                               mTracks = new LinkedList<Track>(response);
-                              scheduleDrawer(drawRate);
+                              if(mDrawerSubscription == null) {
+                                  mDrawerSubscription = getDrawSubscription(drawRate);
+                              }
                           }
 
                           @Override
@@ -140,13 +140,9 @@ public class WallpaperDemoService extends WallpaperService {
             }, 0, reloadRate, TimeUnit.SECONDS); // um, TimeUnit.MINUTES enum didn't exist until API Level 9!
         }
 
-        private void scheduleDrawer(int drawRate) {
-            if(mDrawerSubscription != null)
-                return;
-
-            Log.i(TAG, "scheduleDrawer() - start the drawer subscription");
-
-            mDrawerSubscription = AndroidSchedulers.mainThread().schedulePeriodically(new Action0() {
+        private Subscription getDrawSubscription(int drawRate) {
+            Log.i(TAG, "getDrawSubscription() - start the drawer subscription");
+            return AndroidSchedulers.mainThread().schedulePeriodically(new Action0() {
                 @Override
                 public void call() {
                     Log.i(TAG, "call() - Drawer");
@@ -166,7 +162,7 @@ public class WallpaperDemoService extends WallpaperService {
             mReloadRatePref = Integer.parseInt(prefs.getString("reload_rate_preference", "3600"));
             mBatchingPref = Integer.parseInt(prefs.getString("batching_preference", "10"));
             unsubscribe();
-            mPeriodicFetchSubscription = getPeriodicFetchSubscription(mApi, mReloadRatePref, mBatchingPref, mSearchPref, mDrawRatePref);
+            mPeriodicFetchSubscription = getReloadSubscription(mApi, mReloadRatePref, mBatchingPref, mSearchPref, mDrawRatePref);
         }
 
         @Override
@@ -181,7 +177,7 @@ public class WallpaperDemoService extends WallpaperService {
                                      int _width, int _height) {
             super.onSurfaceChanged(_holder, _format, _width, _height);
             Log.v(TAG, "onSurfaceChanged() Current surface size: " + _width + "," + _height);
-            // Redraw the current Track, this called on orientation change.
+            // Redraw canvas. This called on orientation change.
             draw();
         }
 
@@ -220,12 +216,12 @@ public class WallpaperDemoService extends WallpaperService {
                 if(mPeriodicFetchSubscription == null) {
                     Log.i(TAG, "Restarting API subscription sleep deadline");
                     mPeriodicFetchSubscription =
-                      getPeriodicFetchSubscription(mApi, mReloadRatePref, mBatchingPref, mSearchPref, mDrawRatePref);
+                      getReloadSubscription(mApi, mReloadRatePref, mBatchingPref, mSearchPref, mDrawRatePref);
                 }
             }
         }
 
-        // Terrible hack retrieve like a circular queue
+        // Quick little hack to make a pseudo-circular queue
         private Track getTrack() {
             if(mTracks == null || mTracks.size() == 0)
                 return null;
@@ -238,6 +234,7 @@ public class WallpaperDemoService extends WallpaperService {
             return mTracks.getFirst();
         }
 
+        // Unsubscribes from all subscriptions.
         private void unsubscribe() {
             if(mDrawerSubscription != null) {
                 mDrawerSubscription.unsubscribe();
@@ -289,15 +286,6 @@ public class WallpaperDemoService extends WallpaperService {
             _canvas.drawText("Wallpaper Demo", _canvas.getWidth() / 2, _canvas.getHeight() / 2, textPaint);
         }
 
-        private void drawDebug(Canvas _canvas) {
-            Log.i(TAG, "drawDebug() - start");
-            Paint textPaint = new Paint();
-            textPaint.setColor(Color.BLACK);
-            textPaint.setTextSize(24);
-            String msg = String.format("API calls made: %d, blocked %d, failed %d, tracks: %d", mDebugApiCalls, mDebugBlockedApiCalls, mDebugFailedApiCalls, mTracks.size());
-            _canvas.drawText(msg, 0, _canvas.getHeight(), textPaint);
-        }
-
         // Asks framework to open the provided URL via Intent
         private void openUrl(String _url) {
             if(_url != null) {
@@ -314,13 +302,21 @@ public class WallpaperDemoService extends WallpaperService {
          */
         private boolean isNetworkAvailable() {
             ConnectivityManager connMgr = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
-            if(Build.VERSION.SDK_INT < Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
-                //noinspection deprecation
-                return connMgr.getBackgroundDataSetting();
-            } else {
-                return connMgr.getActiveNetworkInfo() != null
-                  && connMgr.getActiveNetworkInfo().isConnected();
-            }
+            //noinspection deprecation
+            return Build.VERSION.SDK_INT < Build.VERSION_CODES.ICE_CREAM_SANDWICH ?
+              connMgr.getBackgroundDataSetting() :
+              connMgr.getActiveNetworkInfo() != null
+                && connMgr.getActiveNetworkInfo().isConnected();
+        }
+
+        // Writes debug info on the canvas.
+        private void drawDebug(Canvas _canvas) {
+            Log.i(TAG, "drawDebug() - start");
+            Paint textPaint = new Paint();
+            textPaint.setColor(Color.BLACK);
+            textPaint.setTextSize(24);
+            String msg = String.format("API calls made: %d, blocked %d, failed %d, tracks: %d", mDebugApiCalls, mDebugBlockedApiCalls, mDebugFailedApiCalls, mTracks.size());
+            _canvas.drawText(msg, 0, _canvas.getHeight(), textPaint);
         }
     }
 }
