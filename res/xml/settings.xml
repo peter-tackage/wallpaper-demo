@@ -3,24 +3,24 @@
   android:title="@string/wallpaper_settings"
   android:key="wallpaper_settings">
   <EditTextPreference
-    android:key="@string/search_terms_preference"
     android:title="@string/search_terms_preference_title"
-    android:hint="E.g. electronic"
-    android:singleLine="true"
     android:summary="@string/search_terms_preference_summary"
+    android:key="@string/search_terms_preference"
+    android:hint="@string/search_terms_hint"
+    android:singleLine="true"
     android:dialogTitle="@string/dialog_title_search_terms_preference" />
   <ListPreference
     android:title="@string/change_rate_preference_title"
     android:summary="@string/change_rate_preference_summary"
     android:key="@string/change_rate_preference"
-    android:defaultValue="1"
+    android:defaultValue="60"
     android:entries="@array/changeRateEntries"
     android:entryValues="@array/changeRateValues" />
   <ListPreference
     android:title="@string/reload_rate_preference_title"
     android:summary="@string/reload_rate_preference_summary"
     android:key="@string/reload_rate_preference"
-    android:defaultValue="60"
+    android:defaultValue="3600"
     android:entries="@array/reloadRateEntries"
     android:entryValues="@array/reloadRateValues" />
   <ListPreference

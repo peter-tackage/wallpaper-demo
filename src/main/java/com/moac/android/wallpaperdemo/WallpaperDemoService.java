@@ -12,7 +12,6 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
-import android.preference.PreferenceManager;
 import android.service.wallpaper.WallpaperService;
 import android.util.Log;
 import android.view.SurfaceHolder;
@@ -34,6 +33,7 @@ import java.util.concurrent.TimeUnit;
 public class WallpaperDemoService extends WallpaperService {
 
     private static final String TAG = WallpaperDemoService.class.getSimpleName();
+    private static final String SHARED_PREFS_NAME = "wallpaper_settings";
 
     @Override
     public Engine onCreateEngine() {
@@ -42,23 +42,26 @@ public class WallpaperDemoService extends WallpaperService {
 
     protected class WallpaperEngine extends Engine implements SharedPreferences.OnSharedPreferenceChangeListener {
 
-        private long mLastCommandTime;
+        private SharedPreferences mPrefs;
+        private String mSearchPref;
+        private int mChangeRatePref;
+        private int mReloadRatePref;
+        private int mBatchingPref;
+
         private SoundCloudApi mApi;
         private Subscription mPeriodicFetchSubscription;
         private Subscription mApiTrackSubscription;
         private Subscription mDrawerSubscription;
         private TrackDrawer mTrackDrawer;
-        private Track mCurrentTrack;
         private LinkedList<Track> mTracks;
+        private Track mCurrentTrack;
+
         private Handler mHandler;
         private Runnable mSleeping = new Runnable() {
             @Override
             public void run() {
-                if(mPeriodicFetchSubscription != null) {
-                    Log.i(TAG, "Unsubscribing from API due to inactivity");
-                    mPeriodicFetchSubscription.unsubscribe();
-                    mPeriodicFetchSubscription = null;
-                }
+                Log.i(TAG, "Unsubscribing from API due to inactivity");
+                unsubscribe();
             }
         };
 
@@ -66,6 +69,8 @@ public class WallpaperDemoService extends WallpaperService {
         private final Integer[] mPrettyColors =
           { 0xFF434B52, 0xFF54B395, 0xFFD1654C, 0xFFD6B331, 0xFF3D4348,
             0xFFA465C5, 0xFF5661DE, 0xFF4AB498, 0xFFFA7B68 };
+
+        private long mLastCommandTime;
 
         // Debug info
         private int mDebugApiCalls = 0;
@@ -77,8 +82,6 @@ public class WallpaperDemoService extends WallpaperService {
             Log.d(TAG, "onCreate()");
             super.onCreate(_surfaceHolder);
             setTouchEventsEnabled(true);
-            SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
-            prefs.registerOnSharedPreferenceChangeListener(WallpaperEngine.this);
 
             Log.i(TAG, "Creating new WallpaperEngine instance");
 
@@ -90,14 +93,18 @@ public class WallpaperDemoService extends WallpaperService {
 
             // Configure and initialise model
             mApi = WallpaperApplication.getInstance().getSoundCloudApi();
-            mPeriodicFetchSubscription = getPeriodicFetchSubscription(mApi);
+
+            mPrefs = WallpaperDemoService.this.getSharedPreferences(SHARED_PREFS_NAME, 0);
+            mPrefs.registerOnSharedPreferenceChangeListener(this);
+            onSharedPreferenceChanged(mPrefs, null);  // triggers the start
         }
 
         private Observable<List<Track>> getApiTracks(SoundCloudApi _api, String _search, int _limit) {
             return Observable.create(new GetTracksFunction(getApplicationContext(), _api, _search, _limit));
         }
 
-        private Subscription getPeriodicFetchSubscription(final SoundCloudApi api) {
+        private Subscription getPeriodicFetchSubscription(final SoundCloudApi api, int reloadRate,
+                                                          final int limit, final String search, final int drawRate) {
             return AndroidSchedulers.mainThread().schedulePeriodically(new Action0() {
                 @Override
                 public void call() {
@@ -108,7 +115,7 @@ public class WallpaperDemoService extends WallpaperService {
                     }
                     mDebugApiCalls++;
                     // Fetch a new set of track & waveforms from the API
-                    mApiTrackSubscription = getApiTracks(api, "electronic", 10)
+                    mApiTrackSubscription = getApiTracks(api, search, limit)
                       .subscribeOn(Schedulers.newThread()).observeOn(AndroidSchedulers.mainThread())
                       .subscribe(new Observer<List<Track>>() {
 
@@ -116,7 +123,7 @@ public class WallpaperDemoService extends WallpaperService {
                           public void onNext(List<Track> response) {
                               Log.i(TAG, "Track list size: " + response.size());
                               mTracks = new LinkedList<Track>(response);
-                              scheduleDrawer();
+                              scheduleDrawer(drawRate);
                           }
 
                           @Override
@@ -130,11 +137,10 @@ public class WallpaperDemoService extends WallpaperService {
                           }
                       });
                 }
-            }, 0, 60, TimeUnit.SECONDS); // um, TimeUnit.MINUTES enum didn't exist until API Level 9!
+            }, 0, reloadRate, TimeUnit.SECONDS); // um, TimeUnit.MINUTES enum didn't exist until API Level 9!
         }
 
-        // TODO Restart may be required when changing search criteria.
-        private void scheduleDrawer() {
+        private void scheduleDrawer(int drawRate) {
             if(mDrawerSubscription != null)
                 return;
 
@@ -148,23 +154,24 @@ public class WallpaperDemoService extends WallpaperService {
                     mTrackDrawer.setColor(NumberUtils.getRandomElement(mPrettyColors));
                     draw();
                 }
-            }, 0, 10, TimeUnit.SECONDS);
+            }, 0, drawRate, TimeUnit.SECONDS);
         }
 
         @Override
-        public void onSharedPreferenceChanged(SharedPreferences _sharedPreferences, String _key) {
+        public void onSharedPreferenceChanged(SharedPreferences prefs, String _key) {
             Log.i(TAG, "onSharedPreferenceChanged() - Notified ");
+            mSearchPref = prefs.getString("search_term_preference", "");
+            mChangeRatePref = prefs.getInt("change_rate_preference", 60);
+            mReloadRatePref = prefs.getInt("reload_rate_preference", 3600);
+            mBatchingPref = prefs.getInt("batching_preference", 10);
+            unsubscribe();
+            mPeriodicFetchSubscription = getPeriodicFetchSubscription(mApi, mReloadRatePref, mBatchingPref, mSearchPref, mChangeRatePref);
         }
 
         @Override
         public void onDestroy() {
             Log.d(TAG, "onDestroy()");
-            if(mDrawerSubscription != null)
-                mDrawerSubscription.unsubscribe();
-            if(mApiTrackSubscription != null)
-                mApiTrackSubscription.unsubscribe();
-            if(mPeriodicFetchSubscription != null)
-                mPeriodicFetchSubscription.unsubscribe();
+            unsubscribe();
             super.onDestroy();
         }
 
@@ -197,11 +204,10 @@ public class WallpaperDemoService extends WallpaperService {
         public void onVisibilityChanged(boolean visible) {
             super.onVisibilityChanged(visible);
             /**
-             * If the canvas is not visible, give us a deadline until we stop polling the API
-             * there no point downloading data if they're not going to be seen.
-             *
-             * Don't stop the images though, that's relatively benign.
-             *
+             * If the canvas is not visible, set a deadline for visibility or
+             * cancel the subscription: don't downloading data if it's not likely
+             * to be seen.
+             *             *
              * TODO Deadline should be a function of the polling rate.
              */
             if(!visible) {
@@ -213,7 +219,7 @@ public class WallpaperDemoService extends WallpaperService {
                 mHandler.removeCallbacks(mSleeping);
                 if(mPeriodicFetchSubscription == null) {
                     Log.i(TAG, "Restarting API subscription sleep deadline");
-                    mPeriodicFetchSubscription = getPeriodicFetchSubscription(mApi);
+                    mPeriodicFetchSubscription = getPeriodicFetchSubscription(mApi, mReloadRatePref, mBatchingPref, mSearchPref, mChangeRatePref);
                 }
             }
         }
@@ -229,6 +235,21 @@ public class WallpaperDemoService extends WallpaperService {
             Track first = mTracks.removeFirst();
             mTracks.addLast(first);
             return mTracks.getFirst();
+        }
+
+        private void unsubscribe() {
+            if(mDrawerSubscription != null) {
+                mDrawerSubscription.unsubscribe();
+                mDrawerSubscription = null;
+            }
+            if(mApiTrackSubscription != null) {
+                mApiTrackSubscription.unsubscribe();
+                mDrawerSubscription = null;
+            }
+            if(mPeriodicFetchSubscription != null) {
+                mPeriodicFetchSubscription.unsubscribe();
+                mPeriodicFetchSubscription = null;
+            }
         }
 
         /**

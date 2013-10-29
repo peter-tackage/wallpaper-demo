@@ -16,4 +16,5 @@
   <string name="batching_preference_title">Limits</string>
   <string name="batching_preference_summary">How many waveforms should downloaded at once</string>
   <string name="batching_preference">batching_preference</string>
+  <string name="search_terms_hint">E.g. electronic</string>
 </resources>
