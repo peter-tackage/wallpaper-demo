@@ -163,7 +163,8 @@ public class WallpaperDemoService extends WallpaperService {
                 mDrawerSubscription.unsubscribe();
             if(mApiTrackSubscription != null)
                 mApiTrackSubscription.unsubscribe();
-            mPeriodicFetchSubscription.unsubscribe();
+            if(mPeriodicFetchSubscription != null)
+                mPeriodicFetchSubscription.unsubscribe();
             super.onDestroy();
         }
 
