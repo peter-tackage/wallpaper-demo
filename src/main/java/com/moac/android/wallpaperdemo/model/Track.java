@@ -1,5 +1,6 @@
 package com.moac.android.wallpaperdemo.model;
 
+import com.google.gson.annotations.Expose;
 import com.google.gson.annotations.SerializedName;
 
 public class Track {
@@ -30,7 +31,7 @@ public class Track {
     @SerializedName("permalink_url") private String mPermalinkUrl;
 
     // Calculated from Bitmap data
-    protected float[] mWaveformData;
+    @Expose(deserialize = false) protected float[] mWaveformData;
 
     public long getId() { return mId; }
 
