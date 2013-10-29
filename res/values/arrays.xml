@@ -2,11 +2,13 @@
 <resources>
   <!-- All string-array due to bug: http://code.google.com/p/android/issues/detail?id=2096 -->
   <string-array name="changeRateValues">
+    <item>10</item>
     <item>60</item>
     <item>1800</item>
     <item>3600</item>
   </string-array>
   <string-array name="changeRateEntries">
+    <item>Every 10 seconds (debug)</item>
     <item>Every minute</item>
     <item>30 minutes</item>
     <item>1 hour</item>
@@ -22,12 +24,14 @@
     <item>25</item>
   </string-array>
   <string-array name="reloadRateEntries">
+    <item>2 minutes (debug)</item>
     <item>30 minutes</item>
     <item>1 hour</item>
     <item>12 hours</item>
     <item>1 day</item>
   </string-array>
   <string-array name="reloadRateValues">
+    <item>120</item>
     <item>1800</item>
     <item>3600</item>
     <item>43200</item>
