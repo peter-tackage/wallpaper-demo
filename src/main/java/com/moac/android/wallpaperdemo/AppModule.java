@@ -3,7 +3,8 @@ package com.moac.android.wallpaperdemo;
 import android.net.Uri;
 import android.util.Log;
 import com.moac.android.wallpaperdemo.api.ScRequestInterceptor;
-import com.moac.android.wallpaperdemo.api.SoundCloudApi;
+import com.moac.android.wallpaperdemo.api.SoundCloudClient;
+import com.squareup.picasso.Picasso;
 import dagger.Provides;
 import retrofit.RequestInterceptor;
 import retrofit.RestAdapter;
@@ -27,7 +28,7 @@ public class AppModule {
 
     @Provides
     RestAdapter provideRestAdapter() {
-        RestAdapter.Builder builder = new RestAdapter.Builder();
+        Log.i(TAG, "Providing Rest Adapter");
         InputStream inputStream = null;
         try {
             inputStream = application.getAssets().open("soundcloud.properties");
@@ -60,7 +61,16 @@ public class AppModule {
     }
 
     @Provides
-    SoundCloudApi provideSoundCloudClient(RestAdapter restAdapter) {
-        return restAdapter.create(SoundCloudApi.class);
+    SoundCloudClient provideSoundCloudClient(RestAdapter restAdapter) {
+        Log.i(TAG, "Providing SoundCloud Client");
+        return restAdapter.create(SoundCloudClient.class);
+    }
+
+    @Provides
+    Picasso providePicasso() {
+        Log.i(TAG, "Providing Picasso");
+        Picasso pic = Picasso.with(application);
+        pic.setDebugging(true);
+        return pic;
     }
 }

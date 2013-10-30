@@ -1,19 +1,14 @@
 package com.moac.android.wallpaperdemo.api;
 
+import com.moac.android.wallpaperdemo.api.rx.GetTracks;
 import com.moac.android.wallpaperdemo.model.Track;
-import retrofit.Callback;
-import retrofit.http.GET;
-import retrofit.http.Query;
+import rx.Observable;
 
 import java.util.List;
 
-public interface SoundCloudApi {
-    @GET("/tracks")
-    public void getTracks(@Query("genres") String _genre,
-                          @Query("limit") long _limit,
-                          Callback<List<Track>> _callback);
+public class SoundCloudApi {
 
-    @GET("/tracks")
-    public List<Track> getTracks(@Query("q") String _search,
-                                 @Query("limit") long _limit);
+    public static Observable<Track> getApiTracks(SoundCloudClient _api, String _search, int _limit) {
+        return Observable.create(new GetTracks(_api, _search, _limit));
+    }
 }

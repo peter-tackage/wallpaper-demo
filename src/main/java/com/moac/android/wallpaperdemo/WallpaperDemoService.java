@@ -4,6 +4,7 @@ import android.app.WallpaperManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -16,20 +17,25 @@ import android.service.wallpaper.WallpaperService;
 import android.util.Log;
 import android.view.SurfaceHolder;
 import com.moac.android.wallpaperdemo.api.SoundCloudApi;
-import com.moac.android.wallpaperdemo.api.rx.GetTracks;
+import com.moac.android.wallpaperdemo.api.SoundCloudClient;
+import com.moac.android.wallpaperdemo.image.WaveformProcessor;
 import com.moac.android.wallpaperdemo.model.Track;
 import com.moac.android.wallpaperdemo.util.NumberUtils;
-import rx.Observable;
+import com.squareup.picasso.Picasso;
 import rx.Observer;
 import rx.Subscription;
 import rx.android.concurrency.AndroidSchedulers;
 import rx.concurrency.Schedulers;
 import rx.util.functions.Action0;
+import rx.util.functions.Func1;
 
 import javax.inject.Inject;
+import java.io.IOException;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * This is a demo of a live wallpaper using data retrieved from the SoundCloud API.
@@ -92,21 +98,20 @@ import java.util.concurrent.TimeUnit;
  * query. This means that frequent refreshing of the track list if mostly pointless.
  * Perhaps the parameter's use could be introduced to provide a better "discover"
  * experience.
- *
- * TODO Use of null/not null for state of Subscriptions is a bit clunky. State enum?
  */
 public class WallpaperDemoService extends WallpaperService {
 
     private static final String TAG = WallpaperDemoService.class.getSimpleName();
 
-    @Inject SoundCloudApi mApi;
+    @Inject SoundCloudClient mApi;
+    @Inject Picasso mPicasso;
     WallpaperApplication mApplication;
 
     @Override
     public Engine onCreateEngine() {
         mApplication = WallpaperApplication.from(this);
         mApplication.inject(this);
-        return new WallpaperEngine(mApi);
+        return new WallpaperEngine();
     }
 
     // Dagger can't see this class, must DI into the Service instead
@@ -117,7 +122,6 @@ public class WallpaperDemoService extends WallpaperService {
         private int mReloadRatePref;
         private int mPrefetchPref;
 
-        private SoundCloudApi mApi;
         private Subscription mProducerSubscription;
         private Subscription mWorkerSubscription;
         private Subscription mConsumerSubscription;
@@ -125,13 +129,25 @@ public class WallpaperDemoService extends WallpaperService {
         private LinkedList<Track> mTracks;
         private Track mCurrentTrack;
 
-        private Handler mHandler;
+        final private Lock mLock;
+        final private Condition mTracksExist;
+        final private Handler mHandler;
+
         private Runnable mDeadlineRunnable = new Runnable() {
             @Override
             public void run() {
                 Log.i(TAG, "Unsubscribing from API due to inactivity");
                 unsubscribe(mProducerSubscription);
                 mProducerSubscription = null;
+            }
+        };
+        private Runnable drawRunnable = new Runnable() {
+            @Override
+            public void run() {
+                Log.i(TAG, "Executing Draw Runnable");
+                mCurrentTrack = getTrack();
+                mTrackDrawer.setColor(NumberUtils.getRandomElement(mPrettyColors));
+                draw(mTrackDrawer, mCurrentTrack);
             }
         };
 
@@ -148,8 +164,10 @@ public class WallpaperDemoService extends WallpaperService {
         private int mDebugBlockedApiCalls = 0;
         private int mDebugFailedApiCalls = 0;
 
-        public WallpaperEngine(SoundCloudApi _api) {
-            mApi = _api;
+        public WallpaperEngine() {
+            mLock = new ReentrantLock();
+            mTracksExist = mLock.newCondition();
+            mHandler = new Handler();
         }
 
         @Override
@@ -158,7 +176,7 @@ public class WallpaperDemoService extends WallpaperService {
             super.onCreate(_surfaceHolder);
             setTouchEventsEnabled(true);
 
-            mHandler = new Handler();
+            mTracks = new LinkedList<Track>();
 
             // Configure the TrackDrawer
             mTrackDrawer = new TrackDrawer(10, 10);
@@ -179,7 +197,8 @@ public class WallpaperDemoService extends WallpaperService {
             mPrefetchPref = Integer.parseInt(prefs.getString("prefetch_preference", "10"));
             // TODO We could be smart here - only restart the relevant components
             unsubscribeAll();
-            mProducerSubscription = getProducerSubscription(mApi, mReloadRatePref, mPrefetchPref, mSearchPref, mDrawRatePref);
+            mConsumerSubscription = getConsumerSubscription(mDrawRatePref);
+            mProducerSubscription = getProducerSubscription(mApi, mReloadRatePref, mPrefetchPref, mSearchPref);
         }
 
         @Override
@@ -217,7 +236,7 @@ public class WallpaperDemoService extends WallpaperService {
         @Override
         public void onVisibilityChanged(boolean isVisible) {
             super.onVisibilityChanged(isVisible);
-            /**
+            /*
              * If the canvas is not visible, set a deadline for visibility that
              * if reached will cancel the subscription: don't download data that
              * is not likely to be seen
@@ -233,21 +252,17 @@ public class WallpaperDemoService extends WallpaperService {
                 if(mProducerSubscription == null) {
                     Log.i(TAG, "Restarting API subscription sleep deadline");
                     mProducerSubscription =
-                      getProducerSubscription(mApi, mReloadRatePref, mPrefetchPref, mSearchPref, mDrawRatePref);
+                      getProducerSubscription(mApi, mReloadRatePref, mPrefetchPref, mSearchPref);
                 }
             }
         }
 
-        private Observable<List<Track>> getApiTracks(SoundCloudApi _api, String _search, int _limit) {
-            return Observable.create(new GetTracks(getApplicationContext(), _api, _search, _limit));
-        }
-
-        /**
+        /*
          * Creates a periodic "producer" Subscription to get Tracks from the SoundCloud API
          */
-        private Subscription getProducerSubscription(final SoundCloudApi _api, int _reloadRate,
-                                                     final int _limit, final String _search, final int _drawRate) {
-            Log.i(TAG, "getProducerSubscription() - reload: " + _reloadRate + ", limit: " + _limit + ", search: " + _search + ", drawRate: " + _drawRate);
+        private Subscription getProducerSubscription(final SoundCloudClient _api, int _reloadRate,
+                                                     final int _limit, final String _search) {
+            Log.i(TAG, "getProducerSubscription() - reload: " + _reloadRate + ", limit: " + _limit + ", search: " + _search);
             return AndroidSchedulers.mainThread().schedulePeriodically(new Action0() {
                 @Override
                 public void call() {
@@ -259,28 +274,52 @@ public class WallpaperDemoService extends WallpaperService {
                     Log.i(TAG, "getProducerSubscription() - ### POTENTIAL NETWORK CALL ###");
                     mDebugApiCalls++;
                     // Fetch a new set of track & waveforms from the API
-                    mWorkerSubscription = getWorkerSubscription(_api, _search, _limit, _drawRate);
+                    mWorkerSubscription = getWorkerSubscription(_api, _search, _limit);
                 }
             }, 0, _reloadRate, TimeUnit.SECONDS); // um, TimeUnit.MINUTES enum didn't exist until API Level 9!
         }
 
-        /**
+        /*
          * Creates a Subscription to fetch Tracks from the SoundCloud API
          * that match the search criteria
          */
-        private Subscription getWorkerSubscription(SoundCloudApi _api, String _search,
-                                                   int _limit, final int _drawRate) {
-            return getApiTracks(_api, _search, _limit)
-              .subscribeOn(Schedulers.newThread()).observeOn(AndroidSchedulers.mainThread())
-              .subscribe(new Observer<List<Track>>() {
+        private Subscription getWorkerSubscription(SoundCloudClient _api, String _search,
+                                                   final int _limit) {
+            return SoundCloudApi.getApiTracks(_api, _search, _limit)
+              .subscribeOn(Schedulers.newThread()).map(new Func1<Track, Track>() {
+                  @Override
+                  public Track call(Track track) {
+                      try {
+                          Log.i(TAG, "Downloading waveform for track: " + track.getTitle());
+                          Bitmap bitmap = mPicasso.load(track.getWaveformUrl()).get();
+                          float[] waveformData = new WaveformProcessor().transform(bitmap);
+                          track.setWaveformData(waveformData);
+                      } catch(IOException e) {
+                          Log.w(TAG, "Failed to get Bitmap for track: " + track.getTitle(), e);
+                          // Don't bother telling observer, it's just one track that's failed.
+                          // FIXME Hmmm, how to report errors here?
+                          throw new RuntimeException("Error retrieving track waveform: " + track.getWaveformUrl());
+                      }
+                      return track;
+                  }
+              }).observeOn(Schedulers.currentThread())
+              .subscribe(new Observer<Track>() {
 
                   @Override
-                  public void onNext(List<Track> response) {
-                      Log.i(TAG, "Track list size: " + response.size());
-                      mTracks = new LinkedList<Track>(response);
-                      // FIXME This should be a notify on a waiting thread
-                      if(mConsumerSubscription == null) {
-                          mConsumerSubscription = getConsumerSubscription(_drawRate);
+                  public void onNext(Track response) {
+                      Log.i(TAG, "onNext() producer. Track received: " + response.getTitle());
+
+                      // Keep some tracks in the list, let new ones slowly take their place.
+                      // You get a mixture of tracks when result set < limit.
+                      if(mTracks.size() >= _limit) {
+                          mTracks.removeFirst();
+                      }
+                      mTracks.addLast(response);
+                      mLock.lock();
+                      try {
+                          mTracksExist.signalAll();
+                      } finally {
+                          mLock.unlock();
                       }
                   }
 
@@ -297,18 +336,26 @@ public class WallpaperDemoService extends WallpaperService {
               });
         }
 
-        /**
+        /*
          * Creates a periodic "consumer" Subscription to draw a track's waveform
          */
         private Subscription getConsumerSubscription(int drawRate) {
-            Log.i(TAG, "getConsumerSubscription() - start the drawer subscription");
-            return AndroidSchedulers.mainThread().schedulePeriodically(new Action0() {
+            Log.i(TAG, "getConsumerSubscription() - start");
+            return Schedulers.newThread().schedulePeriodically(new Action0() {
                 @Override
                 public void call() {
-                    Log.i(TAG, "call() - Drawer");
-                    mCurrentTrack = getTrack();
-                    mTrackDrawer.setColor(NumberUtils.getRandomElement(mPrettyColors));
-                    draw(mTrackDrawer, mCurrentTrack);
+                    Log.i(TAG, "call() - consumer");
+                    mLock.lock();
+                    try {
+                        while(mTracks == null || mTracks.isEmpty()) {
+                            mTracksExist.await();
+                        }
+                    } catch(InterruptedException e) {
+                        // Ignore, probably unsubscribed.
+                    } finally {
+                        mLock.unlock();
+                    }
+                    mHandler.post(drawRunnable); // post drawing to handler.
                 }
             }, 0, drawRate, TimeUnit.SECONDS);
         }
@@ -344,7 +391,7 @@ public class WallpaperDemoService extends WallpaperService {
             }
         }
 
-        /**
+        /*
          * Draws the current track or a placeholder on a canvas
          */
         public void draw(TrackDrawer _drawer, Track _track) {
@@ -362,11 +409,12 @@ public class WallpaperDemoService extends WallpaperService {
                     drawDebug(c);
                 }
             } catch(IllegalArgumentException iae) {
-                // FIXME This catch is a cludge, This happens all the time
-                // when switching between the preview and the actual
-                // wallpaper with heavy state change occurring, including
-                // draw() calls.
-                // Keep this as I test the cause.
+                /*
+                 *  FIXME This happen (used to?) happen occasionally when switching
+                 *  between the preview and the actual wallpaper with heavy
+                 *  state change occurring, including draw() calls.
+                 *  Keep this as I test the cause; probably rendering contention.
+                 */
                 Log.w(TAG, "Got Exception when using canvas", iae);
             } finally {
                 try {
