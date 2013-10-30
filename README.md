@@ -4,5 +4,6 @@ It uses the following libraries:
 
     * Square Retrofit
     * Square Picasso
+    * Square Dagger
     * Rx Java
 
