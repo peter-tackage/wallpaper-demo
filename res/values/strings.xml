@@ -13,9 +13,10 @@
   <string name="reload_rate_preference_title">Reload Rate</string>
   <string name="reload_rate_preference_summary">How often new waveforms should be downloaded</string>
   <string name="reload_rate_preference">reload_rate_preference</string>
-  <string name="batching_preference_title">Limits</string>
-  <string name="batching_preference_summary">How many waveforms should downloaded at once</string>
-  <string name="batching_preference">batching_preference</string>
+  <string name="prefetch_preference_title">Limits</string>
+  <string name="prefetch_preference_summary">How many waveforms should downloaded at once</string>
+  <string name="prefetch_preference">prefetch_preference</string>
   <string name="search_terms_hint">E.g. electronic</string>
   <string name="wallpaper_settings_key">wallpaper_settings</string>
+  <string name="default_search_term">many object and sounds</string>
 </resources>

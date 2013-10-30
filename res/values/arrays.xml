@@ -13,12 +13,12 @@
     <item>30 minutes</item>
     <item>1 hour</item>
   </string-array>
-  <string-array name="batchingEntries">
+  <string-array name="prefetchEntries">
     <item>5</item>
     <item>10</item>
     <item>25</item>
   </string-array>
-  <string-array name="batchingValues">
+  <string-array name="prefetchValues">
     <item>5</item>
     <item>10</item>
     <item>25</item>

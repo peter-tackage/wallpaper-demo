@@ -30,6 +30,68 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * This is a demo of a live wallpaper using data retrieved from the SoundCloud API.
+ * It provides a rolling set of waveforms based on search query parameters, which are
+ * periodically refreshed via an API query.
+ *
+ * It uses various strategies to find a balance between providing a vaguely interesting
+ * user experience and not placing too much of a drain on device resources, such
+ * as battery and data.
+ *
+ * The wallpaper operates by initialling acquiring waveform and metadata from
+ * the API via a period Subscription which fetches a user configurable batch
+ * of between 5-25 tracks.
+ *
+ * This data is then processed and stored as an in-memory model. At this point
+ * there is no need to access the network until the next invocation. Until then, the
+ * current set of images are displayed cyclically, keeping the user entertained
+ * with the waveforms overlaying a range of handpicked background colours, *most*
+ * of which don't look like day-old mustard spilt down the front of an olive green
+ * jumper.
+ *
+ * The pre-fetching strategy, rather than more frequent periodic retrieval of
+ * smaller amounts of data provides a battery saving in the long term. Refer to
+ * http://developer.android.com/training/efficient-downloads/index.html
+ *
+ * In our case, the amount of data retrieved is relatively small by most standards
+ * so there's no good reason not to prefetch as much as sensible.
+ *
+ * Live wallpaper guidelines strongly suggest not to use CPU when the wallpaper
+ * is not visible. This definitely makes sense when the wallpaper is a fancy,
+ * animated wallpaper, but less sense in our case. If we limited the wallpaper
+ * to only updating when it was visible, it would be pretty boring. If we change
+ * the image while the background is not visible, it arguably makes for a better
+ * user experience; they get a new waveform more often! Naturally, this comes at
+ * the cost of battery drain (although very minimal, it's an in-memory interaction).
+ *
+ * As a middle ground, we attempt to avoid repeated API calls when the wallpaper
+ * is not visible. Once the wallpaper loses visibility, a deadline timer is
+ * initiated which halts all wallpaper updates when it expires. If visibility is
+ * restored before the expiry, the timer is cancelled. If visibility is restored
+ * after the expiry, the periodic fetching is restarted. The deadline time is
+ * the period of the periodic fetching task.
+ *
+ * Things that aren't supported (yet) -
+ *
+ * 1. Persistent caching other than that provided by the HTTP layer and Picasso's
+ * own cache.
+ *
+ * 2. Listening to Android Network Status Broadcasts to determine if the wallpaper
+ * can attempt to initialise the track list following a failure. If you try to start
+ * the wallpaper when you don't have an internet connection, it will probably
+ * and won't retry until the next poll. There's no error message. Ideally, there would
+ * be a stylized picture.
+ *
+ * 3. A set of constantly changing *new* tracks! It seems that without using the
+ * search "offset" parameter you tend to get the same tracks for a given
+ * query. This means that frequent refreshing of the track list if mostly pointless.
+ * Perhaps the parameter's use could be introduced to provide a better "discover"
+ * experience.
+ *
+ * TODO Use of null/not null for state of Subscriptions is a bit clunky
+ *
+ */
 public class WallpaperDemoService extends WallpaperService {
 
     private static final String TAG = WallpaperDemoService.class.getSimpleName();
@@ -44,7 +106,7 @@ public class WallpaperDemoService extends WallpaperService {
         private String mSearchPref;
         private int mDrawRatePref;
         private int mReloadRatePref;
-        private int mBatchingPref;
+        private int mPrefetchPref;
 
         private SoundCloudApi mApi;
         private Subscription mPeriodicFetchSubscription;
@@ -55,11 +117,12 @@ public class WallpaperDemoService extends WallpaperService {
         private Track mCurrentTrack;
 
         private Handler mHandler;
-        private Runnable mSleeping = new Runnable() {
+        private Runnable mDeadlineRunnable = new Runnable() {
             @Override
             public void run() {
                 Log.i(TAG, "Unsubscribing from API due to inactivity");
-                unsubscribe();
+                unsubscribe(mPeriodicFetchSubscription);
+                mPeriodicFetchSubscription = null;
             }
         };
 
@@ -69,6 +132,8 @@ public class WallpaperDemoService extends WallpaperService {
             0xFFA465C5, 0xFF5661DE, 0xFF4AB498, 0xFFFA7B68 };
 
         private long mLastCommandTime;
+
+        private boolean mIsDestroyed;
 
         // Debug info
         private int mDebugApiCalls = 0;
@@ -133,6 +198,7 @@ public class WallpaperDemoService extends WallpaperService {
                           public void onError(Throwable e) {
                               Log.w(TAG, "PeriodFetchSubscription#onError()", e);
                               // TODO Display message if nothing else to show.
+                              // Note: There may still be tracks in mTracks
                               mDebugFailedApiCalls++;
                           }
                       });
@@ -148,7 +214,7 @@ public class WallpaperDemoService extends WallpaperService {
                     Log.i(TAG, "call() - Drawer");
                     mCurrentTrack = getTrack();
                     mTrackDrawer.setColor(NumberUtils.getRandomElement(mPrettyColors));
-                    draw();
+                    draw(mTrackDrawer, mCurrentTrack);
                 }
             }, 0, drawRate, TimeUnit.SECONDS);
         }
@@ -160,15 +226,16 @@ public class WallpaperDemoService extends WallpaperService {
             mSearchPref = prefs.getString("search_term_preference", "");
             mDrawRatePref = Integer.parseInt(prefs.getString("change_rate_preference", "60"));
             mReloadRatePref = Integer.parseInt(prefs.getString("reload_rate_preference", "3600"));
-            mBatchingPref = Integer.parseInt(prefs.getString("batching_preference", "10"));
-            unsubscribe();
-            mPeriodicFetchSubscription = getReloadSubscription(mApi, mReloadRatePref, mBatchingPref, mSearchPref, mDrawRatePref);
+            mPrefetchPref = Integer.parseInt(prefs.getString("prefetch_preference", "10"));
+            // TODO We could be smart here - only restart the relevant components
+            unsubscribeAll();
+            mPeriodicFetchSubscription = getReloadSubscription(mApi, mReloadRatePref, mPrefetchPref, mSearchPref, mDrawRatePref);
         }
 
         @Override
         public void onDestroy() {
             Log.d(TAG, "onDestroy()");
-            unsubscribe();
+            unsubscribeAll();
             super.onDestroy();
         }
 
@@ -177,8 +244,8 @@ public class WallpaperDemoService extends WallpaperService {
                                      int _width, int _height) {
             super.onSurfaceChanged(_holder, _format, _width, _height);
             Log.v(TAG, "onSurfaceChanged() Current surface size: " + _width + "," + _height);
-            // Redraw canvas. This called on orientation change.
-            draw();
+            // Redraw canvas. Called on orientation change.
+            draw(mTrackDrawer, mCurrentTrack);
         }
 
         @Override
@@ -208,15 +275,15 @@ public class WallpaperDemoService extends WallpaperService {
             Log.d(TAG, "onVisibilityChanged() isVisible: " + isVisible);
             if(!isVisible) {
                 Log.i(TAG, "Preparing API subscription for possible sleep");
-                mHandler.postDelayed(mSleeping, TimeUnit.MILLISECONDS.convert(mReloadRatePref, TimeUnit.SECONDS));
+                mHandler.postDelayed(mDeadlineRunnable, TimeUnit.MILLISECONDS.convert(mReloadRatePref, TimeUnit.SECONDS));
             } else {
                 // And we're back! Cancel the deadline, resubscribe if it expired.
                 Log.i(TAG, "Cancelling API subscription sleep deadline");
-                mHandler.removeCallbacks(mSleeping);
+                mHandler.removeCallbacks(mDeadlineRunnable);
                 if(mPeriodicFetchSubscription == null) {
                     Log.i(TAG, "Restarting API subscription sleep deadline");
                     mPeriodicFetchSubscription =
-                      getReloadSubscription(mApi, mReloadRatePref, mBatchingPref, mSearchPref, mDrawRatePref);
+                      getReloadSubscription(mApi, mReloadRatePref, mPrefetchPref, mSearchPref, mDrawRatePref);
                 }
             }
         }
@@ -235,42 +302,55 @@ public class WallpaperDemoService extends WallpaperService {
         }
 
         // Unsubscribes from all subscriptions.
-        private void unsubscribe() {
-            if(mDrawerSubscription != null) {
-                mDrawerSubscription.unsubscribe();
-                mDrawerSubscription = null;
-            }
-            if(mApiTrackSubscription != null) {
-                mApiTrackSubscription.unsubscribe();
-                mDrawerSubscription = null;
-            }
-            if(mPeriodicFetchSubscription != null) {
-                mPeriodicFetchSubscription.unsubscribe();
-                mPeriodicFetchSubscription = null;
+        private void unsubscribeAll() {
+            unsubscribe(mDrawerSubscription);
+            mDrawerSubscription = null;
+
+            unsubscribe(mApiTrackSubscription);
+            mApiTrackSubscription = null;
+
+            unsubscribe(mPeriodicFetchSubscription);
+            mPeriodicFetchSubscription = null;
+        }
+
+        private void unsubscribe(Subscription sub) {
+            if(sub != null) {
+                sub.unsubscribe();
             }
         }
 
         /**
          * Draws the current track or a placeholder on a canvas
          */
-        public void draw() {
+        public void draw(TrackDrawer _drawer, Track _track) {
             Log.i(TAG, "draw() - start");
-
             final SurfaceHolder holder = getSurfaceHolder();
             Canvas c = null;
             try {
                 c = holder.lockCanvas();
                 if(c != null) {
-                    if(mCurrentTrack != null) {
-                        mTrackDrawer.drawOn(c, mCurrentTrack);
+                    if(_track != null) {
+                        _drawer.drawOn(c, _track);
                     } else {
                         drawPlaceholderOn(c);
                     }
                     drawDebug(c);
                 }
+            } catch(IllegalArgumentException iae) {
+                // FIXME This catch is a cludge, This happens all the time
+                // when switching between the preview and the actual
+                // wallpaper with heavy state change occurring, including
+                // draw() calls.
+                // Keep this as I test the cause.
+                Log.w(TAG, "Got Exception when using canvas: " + iae);
             } finally {
-                if(c != null)
-                    holder.unlockCanvasAndPost(c);
+                try {
+                    if(c != null)
+                        holder.unlockCanvasAndPost(c);
+                } catch(IllegalArgumentException iae) {
+                    // See above
+                    Log.w(TAG, "Got Exception when unlocking canvas: " + iae);
+                }
             }
             Log.i(TAG, "draw() - end");
         }
@@ -282,8 +362,19 @@ public class WallpaperDemoService extends WallpaperService {
             textPaint.setColor(Color.WHITE);
             textPaint.setTextAlign(Paint.Align.CENTER);
             textPaint.setTextSize(24);
-            _canvas.drawColor(Color.LTGRAY);
+            _canvas.drawColor(Color.BLACK);
             _canvas.drawText("Wallpaper Demo", _canvas.getWidth() / 2, _canvas.getHeight() / 2, textPaint);
+        }
+
+        // Writes debug info on the canvas.
+        private void drawFailure(Canvas _canvas) {
+            Log.i(TAG, "drawDebug() - start");
+            Paint textPaint = new Paint();
+            textPaint.setColor(Color.WHITE);
+            textPaint.setTextAlign(Paint.Align.CENTER);
+            textPaint.setTextSize(24);
+            _canvas.drawColor(Color.BLACK);
+            _canvas.drawText("Can find anything to show you", 0, _canvas.getHeight(), textPaint);
         }
 
         // Asks framework to open the provided URL via Intent

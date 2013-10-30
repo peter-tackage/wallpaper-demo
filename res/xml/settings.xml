@@ -8,6 +8,7 @@
     android:key="@string/search_terms_preference"
     android:hint="@string/search_terms_hint"
     android:singleLine="true"
+    android:defaultValue="@string/default_search_term"
     android:dialogTitle="@string/dialog_title_search_terms_preference" />
   <ListPreference
     android:title="@string/change_rate_preference_title"
@@ -24,10 +25,10 @@
     android:entries="@array/reloadRateEntries"
     android:entryValues="@array/reloadRateValues" />
   <ListPreference
-    android:title="@string/batching_preference_title"
-    android:summary="@string/batching_preference_summary"
-    android:key="@string/batching_preference"
+    android:title="@string/prefetch_preference_title"
+    android:summary="@string/prefetch_preference_summary"
+    android:key="@string/prefetch_preference"
     android:defaultValue="10"
-    android:entries="@array/batchingEntries"
-    android:entryValues="@array/batchingValues" />
+    android:entries="@array/prefetchEntries"
+    android:entryValues="@array/prefetchValues" />
 </PreferenceScreen>

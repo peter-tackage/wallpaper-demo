@@ -8,18 +8,20 @@ import org.junit.runners.JUnit4;
 import java.util.Arrays;
 
 import static org.hamcrest.core.IsEqual.equalTo;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 @RunWith(JUnit4.class)
 public class NumberUtilsTest {
 
+    /**
+     * Sanity check tests
+     */
+
     @Test
     public void test_nullInputShouldThrow() {
-        Integer[] integers = null;
+        Integer[] ints = null;
         try {
-            NumberUtils.getRandomElement(integers);
+            NumberUtils.getRandomElement(ints);
             fail("Null array should throw IllegalArgumentException");
         } catch(IllegalArgumentException e) {
             // Pass!
@@ -28,9 +30,9 @@ public class NumberUtilsTest {
 
     @Test
     public void test_zeroLengthInputShouldThrow() {
-        Integer[] integers = new Integer[0];
+        Integer[] ints = new Integer[0];
         try {
-            NumberUtils.getRandomElement(integers);
+            NumberUtils.getRandomElement(ints);
             fail("Empty array should throw IllegalArgumentException");
         } catch(IllegalArgumentException e) {
             // Pass!
@@ -39,18 +41,13 @@ public class NumberUtilsTest {
 
     @Test
     public void test_oneElementInputReturnsElement() {
-        Integer[] integers = { 1 };
-        assertThat(NumberUtils.getRandomElement(integers), equalTo(1));
+        Integer[] ints = { 1 };
+        assertThat(NumberUtils.getRandomElement(ints), equalTo(1));
     }
 
     @Test
     public void test_moreThanOneLengthReturnsValue() {
-        Integer[] integers = { 1, 2 };
-        assertTrue(Arrays.asList(integers).contains(NumberUtils.getRandomElement(integers)));
+        Integer[] ints = { 1, 2 };
+        assertTrue(Arrays.asList(ints).contains(NumberUtils.getRandomElement(ints)));
     }
-
-//    @Test
-//    public void testit() {
-//        NumberUtils.downSample(new float[]{ 1, 2, 1, 2, 1, 2, 1 }, 3);
-//    }
 }
