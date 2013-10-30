@@ -15,11 +15,6 @@ public class WallpaperApplication extends Application {
         return (WallpaperApplication) service.getApplication();
     }
 
-    public WallpaperApplication() {
-        super();
-        Log.d(TAG, "Constructing WallpaperApplication");
-    }
-
     @Override
     public void onCreate() {
         Log.d(TAG, "onCreate() - start");
