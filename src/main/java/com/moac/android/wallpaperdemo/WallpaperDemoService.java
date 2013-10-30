@@ -26,6 +26,7 @@ import rx.android.concurrency.AndroidSchedulers;
 import rx.concurrency.Schedulers;
 import rx.util.functions.Action0;
 
+import javax.inject.Inject;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -76,32 +77,37 @@ import java.util.concurrent.TimeUnit;
  * Things that aren't supported just yet -
  *
  * 1. Persistent caching other than that provided by the HTTP layer and Picasso's
- *    own cache. This doesn't affect the wallpaper unless the user restarts their
- *    phone in an area without a connection, in which they've no doubt got bigger
- *    worries.
+ * own cache. This doesn't affect the wallpaper unless the user restarts their
+ * phone in an area without a connection, in which they've no doubt got bigger
+ * worries.
  *
  * 2. Listening to Android Network Status Broadcasts to determine if the wallpaper
- *    can attempt to initialise the track list following a failure. If the user starts
- *    the wallpaper when they don't have an internet connection, it will fail to fetch
- *    and won't retry until the next poll. There's no error message. Ideally, there would
- *    be a stylized picture.
+ * can attempt to initialise the track list following a failure. If the user starts
+ * the wallpaper when they don't have an internet connection, it will fail to fetch
+ * and won't retry until the next poll. There's no error message. Ideally, there would
+ * be a stylized picture.
  *
  * 3. A set of constantly changing *new* tracks! It seems that without using the
- *    search "offset" parameter users tend to get the same tracks for a given
- *    query. This means that frequent refreshing of the track list if mostly pointless.
- *    Perhaps the parameter's use could be introduced to provide a better "discover"
- *    experience.
+ * search "offset" parameter users tend to get the same tracks for a given
+ * query. This means that frequent refreshing of the track list if mostly pointless.
+ * Perhaps the parameter's use could be introduced to provide a better "discover"
+ * experience.
  *
  * TODO Use of null/not null for state of Subscriptions is a bit clunky. State enum?
- *
+ * TODO DI The SoundCloudApi
  */
 public class WallpaperDemoService extends WallpaperService {
 
     private static final String TAG = WallpaperDemoService.class.getSimpleName();
 
+    @Inject SoundCloudApi mApi;
+    WallpaperApplication mApplication;
+
     @Override
     public Engine onCreateEngine() {
-        return new WallpaperEngine();
+        mApplication = WallpaperApplication.from(this);
+        mApplication.inject(this);
+        return new WallpaperEngine(mApi);
     }
 
     protected class WallpaperEngine extends Engine implements SharedPreferences.OnSharedPreferenceChangeListener {
@@ -129,10 +135,11 @@ public class WallpaperDemoService extends WallpaperService {
             }
         };
 
-        // See http://dribbble.com/colors/<value>
+        // Get more at http://dribbble.com/colors/<value>
         private final Integer[] mPrettyColors =
           { 0xFF434B52, 0xFF54B395, 0xFFD1654C, 0xFFD6B331, 0xFF3D4348,
-            0xFFA465C5, 0xFF5661DE, 0xFF4AB498, 0xFFFA7B68 };
+            0xFFA465C5, 0xFF5661DE, 0xFF4AB498, 0xFFFA7B68, 0xFFFF6600,
+            0xFF669900, 0xFF66CCCC };
 
         private long mLastCommandTime;
 
@@ -140,6 +147,10 @@ public class WallpaperDemoService extends WallpaperService {
         private int mDebugApiCalls = 0;
         private int mDebugBlockedApiCalls = 0;
         private int mDebugFailedApiCalls = 0;
+
+        public WallpaperEngine(SoundCloudApi _api) {
+            mApi = _api;
+        }
 
         @Override
         public void onCreate(SurfaceHolder _surfaceHolder) {
@@ -153,21 +164,18 @@ public class WallpaperDemoService extends WallpaperService {
             mTrackDrawer = new TrackDrawer(10, 10);
             mTracks = new LinkedList<Track>();
 
-            // Configure and initialise model
-            mApi = WallpaperApplication.getInstance().getSoundCloudApi();
-
             SharedPreferences prefs = WallpaperDemoService.this.getSharedPreferences(getString(R.string.wallpaper_settings_key), 0);
             prefs.registerOnSharedPreferenceChangeListener(this);
             onSharedPreferenceChanged(prefs, null);  // triggers the start
         }
 
         private Observable<List<Track>> getApiTracks(SoundCloudApi _api, String _search, int _limit) {
-            return Observable.create(new GetTracks(getApplication(), _api, _search, _limit));
+            return Observable.create(new GetTracks(getApplicationContext(), _api, _search, _limit));
         }
 
-        private Subscription getReloadSubscription(final SoundCloudApi api, int reloadRate,
-                                                   final int limit, final String search, final int drawRate) {
-            Log.i(TAG, "getReloadSubscription() - reload: " + reloadRate + ", limit: " + limit + ", search: " + search + ", drawRate: " + drawRate);
+        private Subscription getReloadSubscription(final SoundCloudApi _api, int _reloadRate,
+                                                   final int _limit, final String _search, final int _drawRate) {
+            Log.i(TAG, "getReloadSubscription() - reload: " + _reloadRate + ", limit: " + _limit + ", search: " + _search + ", drawRate: " + _drawRate);
             return AndroidSchedulers.mainThread().schedulePeriodically(new Action0() {
                 @Override
                 public void call() {
@@ -179,32 +187,36 @@ public class WallpaperDemoService extends WallpaperService {
                     Log.i(TAG, "getReloadSubscription() - ### POTENTIAL NETWORK CALL ###");
                     mDebugApiCalls++;
                     // Fetch a new set of track & waveforms from the API
-                    mApiTrackSubscription = getApiTracks(api, search, limit)
-                      .subscribeOn(Schedulers.newThread()).observeOn(AndroidSchedulers.mainThread())
-                      .subscribe(new Observer<List<Track>>() {
-
-                          @Override
-                          public void onNext(List<Track> response) {
-                              Log.i(TAG, "Track list size: " + response.size());
-                              mTracks = new LinkedList<Track>(response);
-                              if(mDrawerSubscription == null) {
-                                  mDrawerSubscription = getDrawSubscription(drawRate);
-                              }
-                          }
-
-                          @Override
-                          public void onCompleted() {}
-
-                          @Override
-                          public void onError(Throwable e) {
-                              Log.w(TAG, "PeriodFetchSubscription#onError()", e);
-                              // TODO Display message if nothing else to show.
-                              // Note: There may still be tracks in mTracks
-                              mDebugFailedApiCalls++;
-                          }
-                      });
+                    mApiTrackSubscription = getApiTrackSubscription(_api, _search, _limit, _drawRate);
                 }
-            }, 0, reloadRate, TimeUnit.SECONDS); // um, TimeUnit.MINUTES enum didn't exist until API Level 9!
+            }, 0, _reloadRate, TimeUnit.SECONDS); // um, TimeUnit.MINUTES enum didn't exist until API Level 9!
+        }
+
+        private Subscription getApiTrackSubscription(SoundCloudApi _api, String _search, int _limit, final int _drawRate) {
+            return getApiTracks(_api, _search, _limit)
+              .subscribeOn(Schedulers.newThread()).observeOn(AndroidSchedulers.mainThread())
+              .subscribe(new Observer<List<Track>>() {
+
+                  @Override
+                  public void onNext(List<Track> response) {
+                      Log.i(TAG, "Track list size: " + response.size());
+                      mTracks = new LinkedList<Track>(response);
+                      if(mDrawerSubscription == null) {
+                          mDrawerSubscription = getDrawSubscription(_drawRate);
+                      }
+                  }
+
+                  @Override
+                  public void onCompleted() {}
+
+                  @Override
+                  public void onError(Throwable e) {
+                      Log.w(TAG, "PeriodFetchSubscription#onError()", e);
+                      // TODO Display message if nothing else to show.
+                      // Note: There may still be tracks in mTracks
+                      mDebugFailedApiCalls++;
+                  }
+              });
         }
 
         private Subscription getDrawSubscription(int drawRate) {
