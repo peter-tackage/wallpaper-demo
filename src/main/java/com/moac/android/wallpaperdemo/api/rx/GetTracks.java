@@ -34,6 +34,14 @@ public class GetTracks implements Observable.OnSubscribeFunc<List<Track>> {
 
     @Override
     public Subscription onSubscribe(Observer<? super List<Track>> _observer) {
+        /**
+         * Queries API for Tracks and then uses metadata to download
+         * the associated waveform bitmap. This is then mapped (hint!)
+         * into an array representing its normalized amplitude.
+         *
+         * The current list of completed items is emitted to onNext each
+         * time; this cleans up the logic of the Observer slightly.
+         */
         try {
             List<Track> tracks = mApi.getTracks(mSearch, mLimit);
             List<Track> completeTracks = new ArrayList<Track>();
@@ -45,7 +53,7 @@ public class GetTracks implements Observable.OnSubscribeFunc<List<Track>> {
                     completeTracks.add(track);
                     _observer.onNext(completeTracks);
                 } catch(IOException e) {
-                    Log.w(TAG, "Failed to get Bitmap for track: " + track.getTitle());
+                    Log.w(TAG, "Failed to get Bitmap for track: " + track.getTitle(),e);
                     // Don't bother telling observer, it's just one track that's failed.
                 }
             }
