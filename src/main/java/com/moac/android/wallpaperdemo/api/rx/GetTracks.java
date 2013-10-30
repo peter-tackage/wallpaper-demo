@@ -3,8 +3,8 @@ package com.moac.android.wallpaperdemo.api.rx;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.util.Log;
-import com.moac.android.wallpaperdemo.WaveformProcessor;
 import com.moac.android.wallpaperdemo.api.SoundCloudApi;
+import com.moac.android.wallpaperdemo.image.WaveformProcessor;
 import com.moac.android.wallpaperdemo.model.Track;
 import com.squareup.picasso.Picasso;
 import rx.Observable;
@@ -49,6 +49,7 @@ public class GetTracks implements Observable.OnSubscribeFunc<List<Track>> {
                     // Don't bother telling observer, it's just one track that's failed.
                 }
             }
+            // TODO Perhaps we should indicate no tracks as an error
             _observer.onCompleted();
         } catch(Exception e) {
             _observer.onError(e);

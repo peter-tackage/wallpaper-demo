@@ -82,7 +82,7 @@ import java.util.concurrent.TimeUnit;
  * worries.
  *
  * 2. Listening to Android Network Status Broadcasts to determine if the wallpaper
- * can attempt to initialise the track list following a failure. If the user starts
+ * can attempt to initialise the track list following a fetch failure. If the user starts
  * the wallpaper when they don't have an internet connection, it will fail to fetch
  * and won't retry until the next poll. There's no error message. Ideally, there would
  * be a stylized picture.
@@ -94,7 +94,6 @@ import java.util.concurrent.TimeUnit;
  * experience.
  *
  * TODO Use of null/not null for state of Subscriptions is a bit clunky. State enum?
- * TODO DI The SoundCloudApi
  */
 public class WallpaperDemoService extends WallpaperService {
 

@@ -1,4 +1,4 @@
-package com.moac.android.wallpaperdemo;
+package com.moac.android.wallpaperdemo.image;
 
 import android.graphics.Bitmap;
 

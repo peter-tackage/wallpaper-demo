@@ -28,9 +28,6 @@ public class AppModule {
     @Provides
     RestAdapter provideRestAdapter() {
         RestAdapter.Builder builder = new RestAdapter.Builder();
-        if(BuildConfig.DEBUG) {
-            builder.setLogLevel(RestAdapter.LogLevel.FULL);
-        }
         InputStream inputStream = null;
         try {
             inputStream = application.getAssets().open("soundcloud.properties");
@@ -52,10 +49,10 @@ public class AppModule {
             return new RestAdapter.Builder()
               .setServer(apiUrl)
               .setRequestInterceptor(ri)
+              .setLogLevel(RestAdapter.LogLevel.FULL)
               .build();
-
         } catch(IOException e) {
-            Log.e(TAG, "Failed to read application properties");
+            Log.e(TAG, "Failed to read SoundCloud API properties file");
             throw new RuntimeException(e);
         } finally {
             closeQuietly(inputStream);

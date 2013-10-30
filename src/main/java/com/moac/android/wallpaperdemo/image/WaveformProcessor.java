@@ -1,8 +1,9 @@
-package com.moac.android.wallpaperdemo;
+package com.moac.android.wallpaperdemo.image;
 
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.util.Log;
+import com.moac.android.wallpaperdemo.BuildConfig;
 
 import java.util.Arrays;
 

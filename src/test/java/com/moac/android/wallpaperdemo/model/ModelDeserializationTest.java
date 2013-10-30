@@ -82,7 +82,7 @@ public class ModelDeserializationTest {
             return sb.toString();
         } catch(IOException ex) {
             throw new RuntimeException("Test data file could not be read: " + _filename, ex);
-        }  finally {
+        } finally {
             closeQuietly(inputStream);
         }
     }
