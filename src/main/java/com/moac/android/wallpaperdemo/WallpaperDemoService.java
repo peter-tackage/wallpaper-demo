@@ -63,33 +63,36 @@ import java.util.concurrent.TimeUnit;
  * to only updating when it was visible, it would be pretty boring. If we change
  * the image while the background is not visible, it arguably makes for a better
  * user experience; they get a new waveform more often! Naturally, this comes at
- * the cost of battery drain (although very minimal, it's an in-memory interaction).
+ * the cost of battery drain (although very minimal, it's a short, in-memory interaction).
  *
  * As a middle ground, we attempt to avoid repeated API calls when the wallpaper
  * is not visible. Once the wallpaper loses visibility, a deadline timer is
- * initiated which halts all wallpaper updates when it expires. If visibility is
+ * initiated which halts all wallpaper API calls when it expires. If visibility is
  * restored before the expiry, the timer is cancelled. If visibility is restored
  * after the expiry, the periodic fetching is restarted. The deadline time is
- * the period of the periodic fetching task.
+ * the period of the periodic fetching task. The cyclic displaying of images is
+ * not affect by this as it is seen as lightweight.
  *
- * Things that aren't supported (yet) -
+ * Things that aren't supported just yet -
  *
  * 1. Persistent caching other than that provided by the HTTP layer and Picasso's
- * own cache.
+ *    own cache. This doesn't affect the wallpaper unless the user restarts their
+ *    phone in an area without a connection, in which they've no doubt got bigger
+ *    worries.
  *
  * 2. Listening to Android Network Status Broadcasts to determine if the wallpaper
- * can attempt to initialise the track list following a failure. If you try to start
- * the wallpaper when you don't have an internet connection, it will probably
- * and won't retry until the next poll. There's no error message. Ideally, there would
- * be a stylized picture.
+ *    can attempt to initialise the track list following a failure. If the user starts
+ *    the wallpaper when they don't have an internet connection, it will fail to fetch
+ *    and won't retry until the next poll. There's no error message. Ideally, there would
+ *    be a stylized picture.
  *
  * 3. A set of constantly changing *new* tracks! It seems that without using the
- * search "offset" parameter you tend to get the same tracks for a given
- * query. This means that frequent refreshing of the track list if mostly pointless.
- * Perhaps the parameter's use could be introduced to provide a better "discover"
- * experience.
+ *    search "offset" parameter users tend to get the same tracks for a given
+ *    query. This means that frequent refreshing of the track list if mostly pointless.
+ *    Perhaps the parameter's use could be introduced to provide a better "discover"
+ *    experience.
  *
- * TODO Use of null/not null for state of Subscriptions is a bit clunky
+ * TODO Use of null/not null for state of Subscriptions is a bit clunky. State enum?
  *
  */
 public class WallpaperDemoService extends WallpaperService {
@@ -132,8 +135,6 @@ public class WallpaperDemoService extends WallpaperService {
             0xFFA465C5, 0xFF5661DE, 0xFF4AB498, 0xFFFA7B68 };
 
         private long mLastCommandTime;
-
-        private boolean mIsDestroyed;
 
         // Debug info
         private int mDebugApiCalls = 0;
