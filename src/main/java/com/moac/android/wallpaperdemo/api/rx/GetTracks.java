@@ -25,17 +25,9 @@ public class GetTracks implements Observable.OnSubscribeFunc<Track> {
 
     @Override
     public Subscription onSubscribe(Observer<? super Track> _observer) {
-        /**
-         * Queries API for Tracks and then uses metadata to download
-         * the associated waveform bitmap. This is then mapped (hint!)
-         * into an array representing its normalized amplitude.
-         *
-         * The current list of completed items is emitted to onNext each
-         * time; this cleans up the logic of the Observer slightly.
-         */
         try {
             List<Track> tracks = mApi.getTracks(mSearch, mLimit);
-            // TODO Perhaps we should indicate no tracks as an error
+            // TODO Perhaps indicate no tracks as an error?
             for(Track track : tracks) {
                 _observer.onNext(track);
             }

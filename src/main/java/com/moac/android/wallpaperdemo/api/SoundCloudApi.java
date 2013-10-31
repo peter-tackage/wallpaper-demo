@@ -4,8 +4,6 @@ import com.moac.android.wallpaperdemo.api.rx.GetTracks;
 import com.moac.android.wallpaperdemo.model.Track;
 import rx.Observable;
 
-import java.util.List;
-
 public class SoundCloudApi {
 
     public static Observable<Track> getApiTracks(SoundCloudClient _api, String _search, int _limit) {
