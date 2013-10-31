@@ -14,21 +14,21 @@
     android:title="@string/change_rate_preference_title"
     android:summary="@string/change_rate_preference_summary"
     android:key="@string/change_rate_preference"
-    android:defaultValue="60"
+    android:defaultValue="@string/default_change_rate"
     android:entries="@array/changeRateEntries"
     android:entryValues="@array/changeRateValues" />
   <ListPreference
     android:title="@string/reload_rate_preference_title"
     android:summary="@string/reload_rate_preference_summary"
     android:key="@string/reload_rate_preference"
-    android:defaultValue="3600"
+    android:defaultValue="@string/default_reload_rate"
     android:entries="@array/reloadRateEntries"
     android:entryValues="@array/reloadRateValues" />
   <ListPreference
     android:title="@string/prefetch_preference_title"
     android:summary="@string/prefetch_preference_summary"
     android:key="@string/prefetch_preference"
-    android:defaultValue="10"
+    android:defaultValue="@string/default_prefetch"
     android:entries="@array/prefetchEntries"
     android:entryValues="@array/prefetchValues" />
 </PreferenceScreen>

@@ -102,19 +102,18 @@ import java.util.concurrent.locks.ReentrantLock;
  * Proper known issues:
  *
  * 1. I've have noticed that sometimes the periodic subscriptions aren't actually
- *    unsubscribed via the onDestroy call. This can be seen in the logs -
+ * unsubscribed via the onDestroy call. This can be seen in the logs -
  *
- *    10-31 00:49:58.538: DEBUG/WallpaperDemoService(4487): onDestroy()com.moac.android.wallpaperdemo.WallpaperDemoService$WallpaperEngine@b517e350
- *    ...
- *    10-31 00:52:50.790: INFO/WallpaperDemoService(4487): draw() - start: com.moac.android.wallpaperdemo.WallpaperDemoService$WallpaperEngine@b517e350 on: Thread[main,5,main]
- *    repeat...
+ * 10-31 00:49:58.538: DEBUG/WallpaperDemoService(4487): onDestroy()com.moac.android.wallpaperdemo.WallpaperDemoService$WallpaperEngine@b517e350
+ * ...
+ * 10-31 00:52:50.790: INFO/WallpaperDemoService(4487): draw() - start: com.moac.android.wallpaperdemo.WallpaperDemoService$WallpaperEngine@b517e350 on: Thread[main,5,main]
+ * repeat...
  *
- *    This causes repeated canvas lock errors in draw() as the two Engines fight for control.
- *    I'll have to look into whether this is an RxJava issue, or perhaps I'm just not doing
- *    it right.
+ * This causes repeated canvas lock errors in draw() as the two Engines fight for control.
+ * I'll have to look into whether this is an RxJava issue, or perhaps I'm just not doing
+ * it right.
  *
- *    Someone else reported a similar issue - https://github.com/Netflix/RxJava/issues/431
- *
+ * Someone else reported a similar issue - https://github.com/Netflix/RxJava/issues/431
  */
 public class WallpaperDemoService extends WallpaperService {
 
@@ -206,12 +205,16 @@ public class WallpaperDemoService extends WallpaperService {
 
         @Override
         public void onSharedPreferenceChanged(SharedPreferences prefs, String _key) {
-            Log.i(TAG, "onSharedPreferenceChanged() - Notified: " + prefs);
+            Log.d(TAG, "onSharedPreferenceChanged() - Notified: " + prefs);
             // integer-arrays don't work:  http://code.google.com/p/android/issues/detail?id=2096
-            mSearchPref = prefs.getString("search_term_preference", "");
-            mDrawRatePref = Integer.parseInt(prefs.getString("change_rate_preference", "60"));
-            mReloadRatePref = Integer.parseInt(prefs.getString("reload_rate_preference", "3600"));
-            mPrefetchPref = Integer.parseInt(prefs.getString("prefetch_preference", "10"));
+            mSearchPref = prefs.getString("search_term_preference", getString(R.string.default_search_term));
+            mDrawRatePref = Integer.parseInt(prefs.getString("change_rate_preference", getString(R.string.default_change_rate)));
+            mReloadRatePref = Integer.parseInt(prefs.getString("reload_rate_preference", getString(R.string.default_reload_rate)));
+            mPrefetchPref = Integer.parseInt(prefs.getString("prefetch_preference", getString(R.string.default_prefetch)));
+
+            String values = String.format("Search: %s, Draw Rate: %s, Reload Rate: %s, Prefetch: %s", mSearchPref, mDrawRatePref, mReloadRatePref, mPrefetchPref);
+            Log.i(TAG, "onSharedPreferenceChanged: " + values);
+
             // TODO We could be smart here - only restart the relevant components
             unsubscribeAll();
             mConsumerSubscription = getConsumerSubscription(mDrawRatePref);
@@ -363,7 +366,7 @@ public class WallpaperDemoService extends WallpaperService {
          * Creates a periodic "consumer" Subscription to draw a track's waveform
          */
         private Subscription getConsumerSubscription(int drawRate) {
-            Log.i(TAG, "getConsumerSubscription() - start");
+            Log.i(TAG, "getConsumerSubscription() - drawRate: " + drawRate);
             return Schedulers.newThread().schedulePeriodically(new Action0() {
                 @Override
                 public void call() {

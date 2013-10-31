@@ -19,4 +19,7 @@
   <string name="search_terms_hint">E.g. electronic</string>
   <string name="wallpaper_settings_key">wallpaper_settings</string>
   <string name="default_search_term">many object and sounds</string>
+  <string name="default_change_rate">60</string>
+  <string name="default_reload_rate">3600</string>
+  <string name="default_prefetch">10</string>
 </resources>
