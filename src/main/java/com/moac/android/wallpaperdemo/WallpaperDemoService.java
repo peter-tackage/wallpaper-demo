@@ -98,6 +98,23 @@ import java.util.concurrent.locks.ReentrantLock;
  * query. This means that frequent refreshing of the track list if mostly pointless.
  * Perhaps the parameter's use could be introduced to provide a better "discover"
  * experience.
+ *
+ * Proper known issues:
+ *
+ * 1. I've have noticed that sometimes the periodic subscriptions aren't actually
+ *    unsubscribed via the onDestroy call. This can be seen in the logs -
+ *
+ *    10-31 00:49:58.538: DEBUG/WallpaperDemoService(4487): onDestroy()com.moac.android.wallpaperdemo.WallpaperDemoService$WallpaperEngine@b517e350
+ *    ...
+ *    10-31 00:52:50.790: INFO/WallpaperDemoService(4487): draw() - start: com.moac.android.wallpaperdemo.WallpaperDemoService$WallpaperEngine@b517e350 on: Thread[main,5,main]
+ *    repeat...
+ *
+ *    This causes repeated canvas lock errors in draw() as the two Engines fight for control.
+ *    I'll have to look into whether this is an RxJava issue, or perhaps I'm just not doing
+ *    it right.
+ *
+ *    Someone else reported a similar issue - https://github.com/Netflix/RxJava/issues/431
+ *
  */
 public class WallpaperDemoService extends WallpaperService {
 
@@ -172,7 +189,7 @@ public class WallpaperDemoService extends WallpaperService {
 
         @Override
         public void onCreate(SurfaceHolder _surfaceHolder) {
-            Log.i(TAG, "onCreate() - Creating new WallpaperEngine instance");
+            Log.i(TAG, "onCreate() - Creating new WallpaperEngine instance: " + this);
             super.onCreate(_surfaceHolder);
             setTouchEventsEnabled(true);
 
@@ -203,7 +220,7 @@ public class WallpaperDemoService extends WallpaperService {
 
         @Override
         public void onDestroy() {
-            Log.d(TAG, "onDestroy()");
+            Log.i(TAG, "onDestroy() - " + this);
             unsubscribeAll();
             super.onDestroy();
         }
@@ -296,11 +313,17 @@ public class WallpaperDemoService extends WallpaperService {
                           track.setWaveformData(waveformData);
                       } catch(IOException e) {
                           Log.w(TAG, "Failed to get Bitmap for track: " + track.getTitle(), e);
-                          // Don't bother telling observer, it's just one track that's failed.
-                          // FIXME Hmmm, how to report errors here?
+                          // FIXME Hmmm, how to handle this error?
+                          // Currently just filter based on existence of waveform.
+                          // More reading: https://github.com/Netflix/RxJava/wiki/Error-Handling-Operators
                           throw new RuntimeException("Error retrieving track waveform: " + track.getWaveformUrl());
                       }
                       return track;
+                  }
+              }).filter(new Func1<Track, Boolean>() {
+                  @Override
+                  public Boolean call(Track track) {
+                      return track.getWaveformData() != null && track.getWaveformData().length != 0;
                   }
               }).observeOn(Schedulers.currentThread())
               .subscribe(new Observer<Track>() {
@@ -351,7 +374,10 @@ public class WallpaperDemoService extends WallpaperService {
                             mTracksExist.await();
                         }
                     } catch(InterruptedException e) {
-                        // Ignore, probably unsubscribed.
+                        // Not entirely sure what to do here
+                        Log.w(TAG, "Consumer Thread interrupted: ", e);
+                        Thread.currentThread().interrupt();
+                        throw new RuntimeException(e);
                     } finally {
                         mLock.unlock();
                     }
@@ -395,7 +421,7 @@ public class WallpaperDemoService extends WallpaperService {
          * Draws the current track or a placeholder on a canvas
          */
         public void draw(TrackDrawer _drawer, Track _track) {
-            Log.i(TAG, "draw() - start");
+            Log.i(TAG, "draw() - start: " + this + " on: " + Thread.currentThread());
             final SurfaceHolder holder = getSurfaceHolder();
             Canvas c = null;
             try {
@@ -408,22 +434,9 @@ public class WallpaperDemoService extends WallpaperService {
                     }
                     drawDebug(c);
                 }
-            } catch(IllegalArgumentException iae) {
-                /*
-                 *  FIXME This happen (used to?) happen occasionally when switching
-                 *  between the preview and the actual wallpaper with heavy
-                 *  state change occurring, including draw() calls.
-                 *  Keep this as I test the cause; probably rendering contention.
-                 */
-                Log.w(TAG, "Got Exception when using canvas", iae);
             } finally {
-                try {
-                    if(c != null)
-                        holder.unlockCanvasAndPost(c);
-                } catch(IllegalArgumentException iae) {
-                    // See above
-                    Log.w(TAG, "Got Exception when unlocking canvas", iae);
-                }
+                if(c != null)
+                    holder.unlockCanvasAndPost(c);
             }
             Log.i(TAG, "draw() - end");
         }
