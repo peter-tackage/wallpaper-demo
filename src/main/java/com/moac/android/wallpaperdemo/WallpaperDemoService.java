@@ -432,7 +432,7 @@ public class WallpaperDemoService extends WallpaperService {
                     } else {
                         drawPlaceholderOn(c);
                     }
-                    drawDebug(c);
+                    // drawDebug(c);
                 }
             } finally {
                 if(c != null)
