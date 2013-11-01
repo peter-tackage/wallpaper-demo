@@ -157,7 +157,7 @@ public class WallpaperDemoService extends WallpaperService {
                 mProducerSubscription = null;
             }
         };
-        private Runnable drawRunnable = new Runnable() {
+        private Runnable mDrawRunnable = new Runnable() {
             @Override
             public void run() {
                 Log.i(TAG, "Executing Draw Runnable");
@@ -367,7 +367,7 @@ public class WallpaperDemoService extends WallpaperService {
          */
         private Subscription getConsumerSubscription(int drawRate) {
             Log.i(TAG, "getConsumerSubscription() - drawRate: " + drawRate);
-            return Schedulers.newThread().schedulePeriodically(new Action0() {
+            return Schedulers.threadPoolForIO().schedulePeriodically(new Action0() {
                 @Override
                 public void call() {
                     Log.i(TAG, "call() - consumer");
@@ -384,7 +384,7 @@ public class WallpaperDemoService extends WallpaperService {
                     } finally {
                         mLock.unlock();
                     }
-                    mHandler.post(drawRunnable); // post drawing to handler.
+                    mHandler.post(mDrawRunnable); // post drawing to handler.
                 }
             }, 0, drawRate, TimeUnit.SECONDS);
         }
@@ -404,6 +404,9 @@ public class WallpaperDemoService extends WallpaperService {
 
         // Unsubscribes from all subscriptions.
         private void unsubscribeAll() {
+
+            cancelCallbacks();
+
             unsubscribe(mConsumerSubscription);
             mConsumerSubscription = null;
 
@@ -412,12 +415,18 @@ public class WallpaperDemoService extends WallpaperService {
 
             unsubscribe(mProducerSubscription);
             mProducerSubscription = null;
+
         }
 
         private void unsubscribe(Subscription sub) {
             if(sub != null) {
                 sub.unsubscribe();
             }
+        }
+
+        private void cancelCallbacks() {
+            mHandler.removeCallbacks(mDeadlineRunnable);
+            mHandler.removeCallbacks(mDrawRunnable);
         }
 
         /*
