@@ -224,8 +224,8 @@ public class WallpaperDemoService extends WallpaperService {
         @Override
         public void onDestroy() {
             Log.i(TAG, "onDestroy() - " + this);
-            unsubscribeAll();
             super.onDestroy();
+            unsubscribeAll();
         }
 
         @Override
@@ -294,6 +294,7 @@ public class WallpaperDemoService extends WallpaperService {
                     Log.i(TAG, "getProducerSubscription() - ### POTENTIAL NETWORK CALL ###");
                     mDebugApiCalls++;
                     // Fetch a new set of track & waveforms from the API
+                    // TODO Is this correct? should we even hold this?
                     mWorkerSubscription = getWorkerSubscription(_api, _search, _limit);
                 }
             }, 0, _reloadRate, TimeUnit.SECONDS); // um, TimeUnit.MINUTES enum didn't exist until API Level 9!
@@ -324,11 +325,11 @@ public class WallpaperDemoService extends WallpaperService {
                       return track;
                   }
               }).filter(new Func1<Track, Boolean>() {
-                  @Override
-                  public Boolean call(Track track) {
-                      return track.getWaveformData() != null && track.getWaveformData().length != 0;
-                  }
-              }).observeOn(Schedulers.currentThread())
+                        @Override
+                        public Boolean call(Track track) {
+                            return track.getWaveformData() != null && track.getWaveformData().length != 0;
+                        }
+                    }).observeOn(Schedulers.currentThread())
               .subscribe(new Observer<Track>() {
 
                   @Override
@@ -337,7 +338,7 @@ public class WallpaperDemoService extends WallpaperService {
 
                       // Keep some tracks in the list, let new ones slowly take their place.
                       // You get a mixture of tracks when result set < limit.
-                      if(mTracks.size() >= _limit) {
+                      if (mTracks.size() >= _limit) {
                           mTracks.removeFirst();
                       }
                       mTracks.addLast(response);
@@ -367,7 +368,7 @@ public class WallpaperDemoService extends WallpaperService {
          */
         private Subscription getConsumerSubscription(int drawRate) {
             Log.i(TAG, "getConsumerSubscription() - drawRate: " + drawRate);
-            return Schedulers.threadPoolForIO().schedulePeriodically(new Action0() {
+            return Schedulers.newThread().schedulePeriodically(new Action0() {
                 @Override
                 public void call() {
                     Log.i(TAG, "call() - consumer");
