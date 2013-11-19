@@ -4,8 +4,8 @@ import retrofit.RequestInterceptor;
 
 public class ScRequestInterceptor implements RequestInterceptor {
 
-    public static final String CLIENT_ID_PARAM = "client_id";
-    public static final String FORMAT_PARAM = "format";
+    private static final String CLIENT_ID_PARAM = "client_id";
+    private static final String FORMAT_PARAM = "format";
 
     private final String mClientId;
     private final String mFormat;
