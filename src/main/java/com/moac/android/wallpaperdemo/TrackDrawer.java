@@ -14,6 +14,8 @@ public class TrackDrawer {
     private static final int DEFAULT_BACKGROUND_COLOR = Color.LTGRAY;
     private static final int DEFAULT_WAVEFORM_COLOR = Color.WHITE;
     private static final int DEFAULT_TEXT_COLOR = Color.WHITE;
+    private static final int TEXT_OFFSET = 10;
+    private static final int DEFAULT_TEXT_SIZE = 16;
 
     private final Paint mBackgroundPaint;
     private final Paint mWaveformPaint;
@@ -22,29 +24,19 @@ public class TrackDrawer {
     private final float mColumnPaddingPx; // padding between columns
 
     public TrackDrawer(float _columnWidth, float _gap) {
-        // Define Paint values once.
-        mBackgroundPaint = new Paint();
-        mBackgroundPaint.setColor(DEFAULT_BACKGROUND_COLOR);
-        mWaveformPaint = new Paint();
-        mWaveformPaint.setColor(DEFAULT_WAVEFORM_COLOR);
-        mWaveformPaint.setAntiAlias(true);
-        mTextPaint = new Paint();
-        mTextPaint.setColor(DEFAULT_TEXT_COLOR);
-        mTextPaint.setTextAlign(Paint.Align.CENTER);
-        mTextPaint.setAntiAlias(true);
-        mTextPaint.setTextSize(16); // TODO Factor in density
+        // Define Paint values once
+        mBackgroundPaint = buildDefaultBackgroundPaint();
+        mWaveformPaint = buildDefaultWaveformPaint();
+        mTextPaint = buildDefaultTextPaint();
+        // Define column properties
         mColumnWidthPx = _columnWidth;
         mColumnPaddingPx = _gap;
     }
 
     public void setColor(int _color) {
         mBackgroundPaint.setColor(_color);
-        float[] hsv = new float[3];
-        Color.colorToHSV(_color, hsv);
-        hsv[1] *= 0.5;
-        hsv[2] *= 1.5;
-        mWaveformPaint.setColor(Color.HSVToColor(hsv));
-        mTextPaint.setColor(Color.HSVToColor(hsv));
+        mWaveformPaint.setColor(toShade(_color));
+        mTextPaint.setColor(toShade(_color));
     }
 
     public void drawOn(Canvas _canvas, Track _track) {
@@ -108,7 +100,7 @@ public class TrackDrawer {
 
         // Write track title text below waveform
         String title = _track.getTitle();
-        _canvas.drawText(title, _canvas.getWidth() / 2f, centreLine + (heightScalingFactor / 2f) + (2f * mColumnWidthPx) + 10, mTextPaint);
+        _canvas.drawText(title, _canvas.getWidth() / 2f, centreLine + (heightScalingFactor / 2f) + (2f * mColumnWidthPx) + TEXT_OFFSET, mTextPaint);
     }
 
     // Draws the circles on either top or bottom of the column
@@ -119,5 +111,36 @@ public class TrackDrawer {
             _canvas.drawCircle(_left + ((_right - _left) / 2f), startY, mColumnWidthPx / 2f, mWaveformPaint);
             startY = _isTop ? startY - mColumnWidthPx : startY + mColumnWidthPx;  // Gap
         }
+    }
+
+    private static Paint buildDefaultTextPaint() {
+        Paint paint = new Paint();
+        paint.setColor(DEFAULT_TEXT_COLOR);
+        paint.setTextAlign(Paint.Align.CENTER);
+        paint.setAntiAlias(true);
+        paint.setTextSize(DEFAULT_TEXT_SIZE); // TODO Factor in density
+        return paint;
+    }
+
+    private static Paint buildDefaultWaveformPaint() {
+        Paint paint = new Paint();
+        paint.setColor(DEFAULT_WAVEFORM_COLOR);
+        paint.setAntiAlias(true);
+        return paint;
+    }
+
+    private static Paint buildDefaultBackgroundPaint() {
+        Paint paint = new Paint();
+        paint.setColor(DEFAULT_BACKGROUND_COLOR);
+        return paint;
+    }
+
+    // Create a complementary shade to the provided color
+    private static int toShade(int _color) {
+        float[] hsv = new float[3];
+        Color.colorToHSV(_color, hsv);
+        hsv[1] *= 0.5;
+        hsv[2] *= 1.5;
+        return Color.HSVToColor(hsv);
     }
 }

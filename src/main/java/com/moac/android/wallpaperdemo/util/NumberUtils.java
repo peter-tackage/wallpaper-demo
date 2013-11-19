@@ -26,15 +26,4 @@ public class NumberUtils {
         int index = random.nextInt(_list.size());
         return _list.get(index);
     }
-
-//    public Observable<Float> average(final Float[] values) {
-//        return Observable.averageFloats(Observable.create(new Observable.OnSubscribeFunc<List<Float>>() {
-//            @Override
-//            public Subscription onSubscribe(Observer<? super List<Float>> observer) {
-//                observer.onNext(Arrays.<Float>asList(values));
-//                observer.onCompleted();
-//                return Subscriptions.empty();
-//            }
-//        }));
-//    }
 }

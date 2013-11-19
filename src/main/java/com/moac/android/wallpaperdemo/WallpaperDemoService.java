@@ -224,8 +224,8 @@ public class WallpaperDemoService extends WallpaperService {
         @Override
         public void onDestroy() {
             Log.i(TAG, "onDestroy() - " + this);
-            super.onDestroy();
             unsubscribeAll();
+            super.onDestroy();
         }
 
         @Override
@@ -405,7 +405,6 @@ public class WallpaperDemoService extends WallpaperService {
 
         // Unsubscribes from all subscriptions.
         private void unsubscribeAll() {
-
             cancelCallbacks();
 
             unsubscribe(mConsumerSubscription);
@@ -416,7 +415,6 @@ public class WallpaperDemoService extends WallpaperService {
 
             unsubscribe(mProducerSubscription);
             mProducerSubscription = null;
-
         }
 
         private void unsubscribe(Subscription sub) {
