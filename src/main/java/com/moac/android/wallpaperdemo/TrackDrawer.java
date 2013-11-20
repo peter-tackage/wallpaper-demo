@@ -14,8 +14,8 @@ public class TrackDrawer {
     private static final int DEFAULT_BACKGROUND_COLOR = Color.LTGRAY;
     private static final int DEFAULT_WAVEFORM_COLOR = Color.WHITE;
     private static final int DEFAULT_TEXT_COLOR = Color.WHITE;
-    private static final int TEXT_OFFSET = 10;
-    private static final int DEFAULT_TEXT_SIZE = 16;
+    private static final int DEFAULT_TEXT_SIZE_PX = 16;
+    private static final int TEXT_OFFSET_PX = 10;
 
     private final Paint mBackgroundPaint;
     private final Paint mWaveformPaint;
@@ -57,7 +57,7 @@ public class TrackDrawer {
         Log.d(TAG, "drawOn() - column width & padding width: " + mColumnWidthPx + "," + mColumnPaddingPx);
 
         float drawableWidth = _canvas.getWidth() - mColumnPaddingPx;
-        Log.d(TAG, "drawOn() - useableWidth: " + drawableWidth);
+        Log.d(TAG, "drawOn() - usableWidth: " + drawableWidth);
 
         // The number of whole columns that fit in the drawable width with the desired column spacing
         final int columns = (int) (drawableWidth / (mColumnPaddingPx));
@@ -100,7 +100,7 @@ public class TrackDrawer {
 
         // Write track title text below waveform
         String title = _track.getTitle();
-        _canvas.drawText(title, _canvas.getWidth() / 2f, centreLine + (heightScalingFactor / 2f) + (2f * mColumnWidthPx) + TEXT_OFFSET, mTextPaint);
+        _canvas.drawText(title, _canvas.getWidth() / 2f, centreLine + (heightScalingFactor / 2f) + (2f * mColumnWidthPx) + TEXT_OFFSET_PX, mTextPaint);
     }
 
     // Draws the circles on either top or bottom of the column
@@ -118,7 +118,7 @@ public class TrackDrawer {
         paint.setColor(DEFAULT_TEXT_COLOR);
         paint.setTextAlign(Paint.Align.CENTER);
         paint.setAntiAlias(true);
-        paint.setTextSize(DEFAULT_TEXT_SIZE); // TODO Factor in density
+        paint.setTextSize(DEFAULT_TEXT_SIZE_PX); // TODO Factor in density
         return paint;
     }
 

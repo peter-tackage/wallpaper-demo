@@ -119,6 +119,11 @@ public class WallpaperDemoService extends WallpaperService {
 
     private static final String TAG = WallpaperDemoService.class.getSimpleName();
 
+    private static final String SEARCH_TERM_PREFERENCE = "search_term_preference";
+    private static final String CHANGE_RATE_PREFERENCE = "change_rate_preference";
+    private static final String RELOAD_RATE_PREFERENCE = "reload_rate_preference";
+    private static final String PREFETCH_PREFERENCE = "prefetch_preference";
+
     @Inject SoundCloudClient mApi;
     @Inject Picasso mPicasso;
     WallpaperApplication mApplication;
@@ -207,10 +212,10 @@ public class WallpaperDemoService extends WallpaperService {
         public void onSharedPreferenceChanged(SharedPreferences prefs, String _key) {
             Log.d(TAG, "onSharedPreferenceChanged() - Notified: " + prefs);
             // integer-arrays don't work:  http://code.google.com/p/android/issues/detail?id=2096
-            mSearchPref = prefs.getString("search_term_preference", getString(R.string.default_search_term));
-            mDrawRatePref = Integer.parseInt(prefs.getString("change_rate_preference", getString(R.string.default_change_rate)));
-            mReloadRatePref = Integer.parseInt(prefs.getString("reload_rate_preference", getString(R.string.default_reload_rate)));
-            mPrefetchPref = Integer.parseInt(prefs.getString("prefetch_preference", getString(R.string.default_prefetch)));
+            mSearchPref = prefs.getString(SEARCH_TERM_PREFERENCE, getString(R.string.default_search_term));
+            mDrawRatePref = Integer.parseInt(prefs.getString(CHANGE_RATE_PREFERENCE, getString(R.string.default_change_rate)));
+            mReloadRatePref = Integer.parseInt(prefs.getString(RELOAD_RATE_PREFERENCE, getString(R.string.default_reload_rate)));
+            mPrefetchPref = Integer.parseInt(prefs.getString(PREFETCH_PREFERENCE, getString(R.string.default_prefetch)));
 
             String values = String.format("Search: %s, Draw Rate: %s, Reload Rate: %s, Prefetch: %s", mSearchPref, mDrawRatePref, mReloadRatePref, mPrefetchPref);
             Log.i(TAG, "onSharedPreferenceChanged: " + values);
