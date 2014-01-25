@@ -19,9 +19,8 @@ public class NumberUtilsTest {
 
     @Test
     public void test_nullInputShouldThrow() {
-        Integer[] ints = null;
         try {
-            NumberUtils.getRandomElement(ints);
+            NumberUtils.getRandomElement((Integer[])null);
             fail("Null array should throw IllegalArgumentException");
         } catch(IllegalArgumentException e) {
             // Pass!
