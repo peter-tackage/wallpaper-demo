@@ -17,7 +17,6 @@ import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 
-import com.moac.android.wallpaperdemo.api.SoundCloudApi;
 import com.moac.android.wallpaperdemo.api.SoundCloudClient;
 import com.moac.android.wallpaperdemo.api.model.Track;
 import com.moac.android.wallpaperdemo.gfx.TrackDrawer;
@@ -27,6 +26,7 @@ import com.squareup.picasso.Picasso;
 
 import java.io.IOException;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
@@ -34,6 +34,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import javax.inject.Inject;
 
+import rx.Observable;
 import rx.Observer;
 import rx.Subscription;
 import rx.android.schedulers.AndroidSchedulers;
@@ -341,10 +342,17 @@ public class WallpaperDemoService extends WallpaperService {
          */
         private Subscription getWorkerSubscription(SoundCloudClient api, String search,
                                                    final int limit) {
-            return SoundCloudApi.getApiTracks(api, search, limit)
-                    .subscribeOn(Schedulers.newThread()).map(new Func1<Track, Track>() {
+            return api.getTracks(search, limit)
+                    .subscribeOn(Schedulers.io()).flatMap(new Func1<List<Track>, Observable<Track>>() {
+                        @Override
+                        public Observable<Track> call(List<Track> tracks) {
+                            // Process each track individually
+                            return Observable.from(tracks);
+                        }
+                    }).map(new Func1<Track, Track>() {
                         @Override
                         public Track call(Track track) {
+                            // Attempt to fetch the image waveform bitmap
                             try {
                                 Log.i(TAG, "Downloading waveform for track: " + track.getTitle());
                                 Bitmap bitmap = mPicasso.load(track.getWaveformUrl()).get();
@@ -352,16 +360,14 @@ public class WallpaperDemoService extends WallpaperService {
                                 track.setWaveformData(waveformData);
                             } catch (IOException e) {
                                 Log.w(TAG, "Failed to get Bitmap for track: " + track.getTitle(), e);
-                                // FIXME Hmmm, how to handle this error?
-                                // Currently just filter based on existence of waveform.
-                                // More reading: https://github.com/Netflix/RxJava/wiki/Error-Handling-Operators
-                                throw new RuntimeException("Error retrieving track waveform: " + track.getWaveformUrl());
+                                // We will filter this track from the results
                             }
                             return track;
                         }
                     }).filter(new Func1<Track, Boolean>() {
                         @Override
                         public Boolean call(Track track) {
+                            // Remove tracks with no waveform data
                             return track.getWaveformData() != null && track.getWaveformData().length != 0;
                         }
                     }).observeOn(Schedulers.immediate())
