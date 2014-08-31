@@ -1,0 +1,14 @@
+package com.moac.android.wallpaperdemo.api;
+
+import com.moac.android.wallpaperdemo.model.Track;
+import retrofit.Callback;
+import retrofit.http.GET;
+import retrofit.http.Query;
+
+import java.util.List;
+
+public interface SoundCloudClient {
+    @GET("/tracks")
+    public List<Track> getTracks(@Query("q") String search,
+                                 @Query("limit") long limit);
+}
