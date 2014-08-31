@@ -25,7 +25,7 @@ public class WallpaperPreferences {
 
     // integer-arrays don't work:  http://code.google.com/p/android/issues/detail?id=2096
 
-    public String getSearchTerms() {
+    public String getSearchTerm() {
         return sharedPreferences.getString(SEARCH_TERM_PREFERENCE, appContext.getString(R.string.default_search_term));
     }
 

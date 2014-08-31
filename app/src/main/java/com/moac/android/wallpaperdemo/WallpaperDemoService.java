@@ -3,7 +3,6 @@ package com.moac.android.wallpaperdemo;
 import android.app.WallpaperManager;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -20,13 +19,11 @@ import android.view.SurfaceHolder;
 import com.moac.android.wallpaperdemo.api.SoundCloudClient;
 import com.moac.android.wallpaperdemo.api.model.Track;
 import com.moac.android.wallpaperdemo.gfx.TrackDrawer;
-import com.moac.android.wallpaperdemo.gfx.WaveformProcessor;
+import com.moac.android.wallpaperdemo.observable.TrackObservables;
 import com.moac.android.wallpaperdemo.util.NumberUtils;
 import com.squareup.picasso.Picasso;
 
-import java.io.IOException;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
@@ -34,13 +31,12 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import javax.inject.Inject;
 
-import rx.Observable;
 import rx.Observer;
 import rx.Subscription;
 import rx.android.schedulers.AndroidSchedulers;
 import rx.functions.Action0;
-import rx.functions.Func1;
 import rx.schedulers.Schedulers;
+import rx.subscriptions.CompositeSubscription;
 
 import static com.moac.android.wallpaperdemo.util.DeviceUtils.isNetworkAvailable;
 
@@ -143,8 +139,8 @@ public class WallpaperDemoService extends WallpaperService {
     // Dagger can't see this class, must DI into the Service instead
     protected class WallpaperEngine extends Engine implements SharedPreferences.OnSharedPreferenceChangeListener {
 
-        private Subscription mProducerSubscription;
-        private Subscription mWorkerSubscription;
+        // FIXME(PT) Could this be a Subject, instead
+        private CompositeSubscription mProducerSubscription = new CompositeSubscription();
         private Subscription mConsumerSubscription;
         private TrackDrawer mTrackDrawer;
         private LinkedList<Track> mTracks;
@@ -160,7 +156,6 @@ public class WallpaperDemoService extends WallpaperService {
             public void run() {
                 Log.i(TAG, "Unsubscribing from API due to inactivity");
                 unsubscribeSafely(mProducerSubscription);
-                mProducerSubscription = null;
             }
         };
         private Runnable mDrawRunnable = new Runnable() {
@@ -233,22 +228,22 @@ public class WallpaperDemoService extends WallpaperService {
         }
 
         private void startFromPreferences() {
-            String searchTerms = mWallpaperPreferences.getSearchTerms();
+            String searchTerm = mWallpaperPreferences.getSearchTerm();
             int drawRate = mWallpaperPreferences.getDrawRateInSeconds();
             int reloadRate = mWallpaperPreferences.getReloadRateInSeconds();
             int prefetchCount = mWallpaperPreferences.getPrefetchCount();
-            start(searchTerms, drawRate, reloadRate, prefetchCount);
+            start(searchTerm, drawRate, reloadRate, prefetchCount);
         }
 
-        private void start(String searchTerms, int drawRate, int reloadRate, int prefetchCount) {
-            String values = String.format("Search: %s, Draw Rate: %s, Reload Rate: %s, Prefetch: %s",
-                    searchTerms, drawRate, reloadRate, prefetchCount);
+        private void start(String searchTerm, int drawRate, int reloadRate, int prefetchCount) {
+            String values = String.format("Search Term: %s, Draw Rate: %s, Reload Rate: %s, Prefetch Count: %s",
+                    searchTerm, drawRate, reloadRate, prefetchCount);
             Log.i(TAG, "Starting Engine with configuration: " + values);
 
             // TODO We could be smart here - only restart the relevant components
-            unsubscribeAll();
-            mConsumerSubscription = getConsumerSubscription(drawRate);
-            mProducerSubscription = getProducerSubscription(mApi, reloadRate, prefetchCount, searchTerms);
+            unsubscribeAll(); // Is this a little paranoid? Perhaps should only be in onSharedPreferenceChanged
+            mConsumerSubscription = createConsumerSubscription(drawRate);
+            mProducerSubscription.add(createProducerSubscription(mApi, reloadRate, prefetchCount, searchTerm));
         }
 
         @Override
@@ -302,114 +297,81 @@ public class WallpaperDemoService extends WallpaperService {
                 // And we're back! Cancel the deadline, resubscribe if it expired.
                 Log.i(TAG, "Cancelling API subscription sleep deadline");
                 mMainThreadHandler.removeCallbacks(mDeadlineRunnable);
-                if (mProducerSubscription == null) {
+                if (mProducerSubscription.isUnsubscribed()) {
                     Log.i(TAG, "Restarting API subscription sleep deadline");
-                    mProducerSubscription =
-                            getProducerSubscription(mApi,
-                                    mWallpaperPreferences.getReloadRateInSeconds()
-                                    , mWallpaperPreferences.getPrefetchCount()
-                                    , mWallpaperPreferences.getSearchTerms());
+                    // Need to recreate the subscription once is has been unsubscribed
+                    mProducerSubscription = new CompositeSubscription(createProducerSubscription(mApi
+                            , mWallpaperPreferences.getReloadRateInSeconds()
+                            , mWallpaperPreferences.getPrefetchCount()
+                            , mWallpaperPreferences.getSearchTerm()));
                 }
             }
         }
 
         /*
          * Creates a periodic "producer" Subscription to get Tracks from the SoundCloud API
+         *
+         * "A subscription to periodically subscribe to the API observable"
          */
-        private Subscription getProducerSubscription(final SoundCloudClient api, int reloadRate,
-                                                     final int limit, final String search) {
-            Log.i(TAG, "getProducerSubscription() - reload: " + reloadRate + ", limit: " + limit + ", search: " + search);
+        private Subscription createProducerSubscription(final SoundCloudClient api, int reloadRate,
+                                                        final int limit, final String searchTerm) {
+            Log.i(TAG, "createProducerSubscription() - reloadRate: " + reloadRate + ", limit: " + limit + ", searchTerm: " + searchTerm);
             return AndroidSchedulers.mainThread().createWorker().schedulePeriodically(new Action0() {
                 @Override
                 public void call() {
                     if (!isNetworkAvailable(WallpaperDemoService.this)) {
-                        Log.i(TAG, "getProducerSubscription() - network unavailable");
+                        Log.i(TAG, "createProducerSubscription() - network unavailable");
                         mDebugBlockedApiCalls++;
                         return;
                     }
-                    Log.i(TAG, "getProducerSubscription() - ### POTENTIAL NETWORK CALL ###");
+                    Log.i(TAG, "createProducerSubscription() - ### POTENTIAL NETWORK CALL ###");
                     mDebugApiCalls++;
-                    // Fetch a new set of track & waveforms from the API
-                    // TODO Is this correct? should we even hold this?
-                    mWorkerSubscription = getWorkerSubscription(api, search, limit);
+
+                    // Fetch a new set of track & waveforms from the API - observed in io thread
+                    // FIXME(PT) I'm not quite sure here, I think that if unsubscribe from the producer,
+                    // then we should also unsubscribe from its underlying worker subscription
+                    mProducerSubscription.add(TrackObservables.from(api.getTracks(searchTerm, limit), mPicasso)
+                            .subscribe(new Observer<Track>() {
+
+                                @Override
+                                public void onNext(Track response) {
+                                    Log.i(TAG, "onNext() producer. Track received: " + response.getTitle());
+
+                                    // Keep some tracks in the list, let new ones slowly take their place.
+                                    // You get a mixture of tracks when result set < limit.
+                                    if (mTracks.size() >= limit) {
+                                        mTracks.removeFirst();
+                                    }
+                                    mTracks.addLast(response);
+                                    mLock.lock();
+                                    try {
+                                        mTracksExist.signalAll();
+                                    } finally {
+                                        mLock.unlock();
+                                    }
+                                }
+
+                                @Override
+                                public void onCompleted() {
+                                }
+
+                                @Override
+                                public void onError(Throwable e) {
+                                    Log.w(TAG, "PeriodFetchSubscription#onError()", e);
+                                    // TODO Display message if nothing else to show.
+                                    // Note: There may still be tracks in mTracks
+                                    mDebugFailedApiCalls++;
+                                }
+                            }));
                 }
             }, 0, reloadRate, TimeUnit.SECONDS); // um, TimeUnit.MINUTES enum didn't exist until API Level 9!
         }
 
         /*
-         * Creates a Subscription to fetch Tracks from the SoundCloud API
-         * that match the search criteria
-         */
-        private Subscription getWorkerSubscription(SoundCloudClient api, String search,
-                                                   final int limit) {
-            return api.getTracks(search, limit)
-                    .subscribeOn(Schedulers.io()).flatMap(new Func1<List<Track>, Observable<Track>>() {
-                        @Override
-                        public Observable<Track> call(List<Track> tracks) {
-                            // Process each track individually
-                            return Observable.from(tracks);
-                        }
-                    }).map(new Func1<Track, Track>() {
-                        @Override
-                        public Track call(Track track) {
-                            // Attempt to fetch the image waveform bitmap
-                            try {
-                                Log.i(TAG, "Downloading waveform for track: " + track.getTitle());
-                                Bitmap bitmap = mPicasso.load(track.getWaveformUrl()).get();
-                                float[] waveformData = new WaveformProcessor().transform(bitmap);
-                                track.setWaveformData(waveformData);
-                            } catch (IOException e) {
-                                Log.w(TAG, "Failed to get Bitmap for track: " + track.getTitle(), e);
-                                // We will filter this track from the results
-                            }
-                            return track;
-                        }
-                    }).filter(new Func1<Track, Boolean>() {
-                        @Override
-                        public Boolean call(Track track) {
-                            // Remove tracks with no waveform data
-                            return track.getWaveformData() != null && track.getWaveformData().length != 0;
-                        }
-                    }).observeOn(Schedulers.immediate())
-                    .subscribe(new Observer<Track>() {
-
-                        @Override
-                        public void onNext(Track response) {
-                            Log.i(TAG, "onNext() producer. Track received: " + response.getTitle());
-
-                            // Keep some tracks in the list, let new ones slowly take their place.
-                            // You get a mixture of tracks when result set < limit.
-                            if (mTracks.size() >= limit) {
-                                mTracks.removeFirst();
-                            }
-                            mTracks.addLast(response);
-                            mLock.lock();
-                            try {
-                                mTracksExist.signalAll();
-                            } finally {
-                                mLock.unlock();
-                            }
-                        }
-
-                        @Override
-                        public void onCompleted() {
-                        }
-
-                        @Override
-                        public void onError(Throwable e) {
-                            Log.w(TAG, "PeriodFetchSubscription#onError()", e);
-                            // TODO Display message if nothing else to show.
-                            // Note: There may still be tracks in mTracks
-                            mDebugFailedApiCalls++;
-                        }
-                    });
-        }
-
-        /*
          * Creates a periodic "consumer" Subscription to draw a track's waveform
          */
-        private Subscription getConsumerSubscription(int drawRate) {
-            Log.i(TAG, "getConsumerSubscription() - drawRate: " + drawRate);
+        private Subscription createConsumerSubscription(int drawRate) {
+            Log.i(TAG, "createConsumerSubscription() - drawRate: " + drawRate);
             return Schedulers.newThread().createWorker().schedulePeriodically(new Action0() {
                 @Override
                 public void call() {
@@ -420,10 +382,10 @@ public class WallpaperDemoService extends WallpaperService {
                             mTracksExist.await();
                         }
                     } catch (InterruptedException e) {
-                        // Not entirely sure what to do here
+                        // We've been interrupted. Not entirely sure what to do
                         Log.w(TAG, "Consumer Thread interrupted: ", e);
                         Thread.currentThread().interrupt();
-                        throw new RuntimeException(e);
+                        return;
                     } finally {
                         mLock.unlock();
                     }
@@ -449,15 +411,8 @@ public class WallpaperDemoService extends WallpaperService {
         // Unsubscribes from all subscriptions.
         private void unsubscribeAll() {
             cancelCallbacks();
-
             unsubscribeSafely(mConsumerSubscription);
-            mConsumerSubscription = null;
-
-            unsubscribeSafely(mWorkerSubscription);
-            mWorkerSubscription = null;
-
             unsubscribeSafely(mProducerSubscription);
-            mProducerSubscription = null;
         }
 
         private void unsubscribeSafely(Subscription sub) {
