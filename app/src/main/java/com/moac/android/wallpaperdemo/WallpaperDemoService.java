@@ -16,9 +16,9 @@ import android.view.SurfaceHolder;
 
 import com.moac.android.wallpaperdemo.api.SoundCloudApi;
 import com.moac.android.wallpaperdemo.api.SoundCloudClient;
+import com.moac.android.wallpaperdemo.api.model.Track;
 import com.moac.android.wallpaperdemo.gfx.TrackDrawer;
 import com.moac.android.wallpaperdemo.gfx.WaveformProcessor;
-import com.moac.android.wallpaperdemo.model.Track;
 import com.moac.android.wallpaperdemo.util.NumberUtils;
 import com.squareup.picasso.Picasso;
 
@@ -122,31 +122,22 @@ public class WallpaperDemoService extends WallpaperService {
 
     private static final String TAG = WallpaperDemoService.class.getSimpleName();
 
-    private static final String SEARCH_TERM_PREFERENCE = "search_term_preference";
-    private static final String CHANGE_RATE_PREFERENCE = "change_rate_preference";
-    private static final String RELOAD_RATE_PREFERENCE = "reload_rate_preference";
-    private static final String PREFETCH_PREFERENCE = "prefetch_preference";
-
     @Inject
     SoundCloudClient mApi;
     @Inject
     Picasso mPicasso;
-    WallpaperApplication mApplication;
+    @Inject
+    WallpaperPreferences mWallpaperPreferences;
 
     @Override
     public Engine onCreateEngine() {
-        mApplication = WallpaperApplication.from(this);
-        mApplication.inject(this);
+        WallpaperApplication app = WallpaperApplication.from(this);
+        app.inject(this);
         return new WallpaperEngine();
     }
 
     // Dagger can't see this class, must DI into the Service instead
     protected class WallpaperEngine extends Engine implements SharedPreferences.OnSharedPreferenceChangeListener {
-
-        private String mSearchPref;
-        private int mDrawRatePref;
-        private int mReloadRatePref;
-        private int mPrefetchPref;
 
         private Subscription mProducerSubscription;
         private Subscription mWorkerSubscription;
@@ -208,33 +199,42 @@ public class WallpaperDemoService extends WallpaperService {
             mTrackDrawer = new TrackDrawer(10, 10);
             mTracks = new LinkedList<Track>();
 
-            SharedPreferences prefs = WallpaperDemoService.this.getSharedPreferences(getString(R.string.wallpaper_settings_key), 0);
-            prefs.registerOnSharedPreferenceChangeListener(this);
-            onSharedPreferenceChanged(prefs, null);  // triggers the start
+            mWallpaperPreferences.addChangeListener(this);
+
+            // Start drawing
+            startFromPreferences();
         }
 
         @Override
         public void onSharedPreferenceChanged(SharedPreferences prefs, String key) {
             Log.d(TAG, "onSharedPreferenceChanged() - Notified: " + prefs);
-            // integer-arrays don't work:  http://code.google.com/p/android/issues/detail?id=2096
-            mSearchPref = prefs.getString(SEARCH_TERM_PREFERENCE, getString(R.string.default_search_term));
-            mDrawRatePref = Integer.parseInt(prefs.getString(CHANGE_RATE_PREFERENCE, getString(R.string.default_change_rate)));
-            mReloadRatePref = Integer.parseInt(prefs.getString(RELOAD_RATE_PREFERENCE, getString(R.string.default_reload_rate)));
-            mPrefetchPref = Integer.parseInt(prefs.getString(PREFETCH_PREFERENCE, getString(R.string.default_prefetch)));
+            startFromPreferences();
+        }
 
-            String values = String.format("Search: %s, Draw Rate: %s, Reload Rate: %s, Prefetch: %s", mSearchPref, mDrawRatePref, mReloadRatePref, mPrefetchPref);
-            Log.i(TAG, "onSharedPreferenceChanged: " + values);
+        private void startFromPreferences() {
+            String searchTerms = mWallpaperPreferences.getSearchTerms();
+            int drawRate = mWallpaperPreferences.getDrawRateInSeconds();
+            int reloadRate = mWallpaperPreferences.getReloadRateInSeconds();
+            int prefetchCount = mWallpaperPreferences.getPrefetchCount();
+            start(searchTerms, drawRate, reloadRate, prefetchCount);
+        }
+
+        private void start(String searchTerms, int drawRate, int reloadRate, int prefetchCount) {
+            String values = String.format("Search: %s, Draw Rate: %s, Reload Rate: %s, Prefetch: %s",
+                    searchTerms, drawRate, reloadRate, prefetchCount);
+            Log.i(TAG, "Starting Engine with configuration: " + values);
 
             // TODO We could be smart here - only restart the relevant components
             unsubscribeAll();
-            mConsumerSubscription = getConsumerSubscription(mDrawRatePref);
-            mProducerSubscription = getProducerSubscription(mApi, mReloadRatePref, mPrefetchPref, mSearchPref);
+            mConsumerSubscription = getConsumerSubscription(drawRate);
+            mProducerSubscription = getProducerSubscription(mApi, reloadRate, prefetchCount, searchTerms);
         }
 
         @Override
         public void onDestroy() {
             Log.i(TAG, "onDestroy() - " + this);
             unsubscribeAll();
+            mWallpaperPreferences.removeChangeListener(this);
             super.onDestroy();
         }
 
@@ -274,7 +274,8 @@ public class WallpaperDemoService extends WallpaperService {
             Log.d(TAG, "onVisibilityChanged() isVisible: " + isVisible);
             if (!isVisible) {
                 Log.i(TAG, "Preparing API subscription for possible sleep");
-                mHandler.postDelayed(mDeadlineRunnable, TimeUnit.MILLISECONDS.convert(mReloadRatePref, TimeUnit.SECONDS));
+                mHandler.postDelayed(mDeadlineRunnable, TimeUnit.MILLISECONDS.
+                        convert(mWallpaperPreferences.getReloadRateInSeconds(), TimeUnit.SECONDS));
             } else {
                 // And we're back! Cancel the deadline, resubscribe if it expired.
                 Log.i(TAG, "Cancelling API subscription sleep deadline");
@@ -282,7 +283,10 @@ public class WallpaperDemoService extends WallpaperService {
                 if (mProducerSubscription == null) {
                     Log.i(TAG, "Restarting API subscription sleep deadline");
                     mProducerSubscription =
-                            getProducerSubscription(mApi, mReloadRatePref, mPrefetchPref, mSearchPref);
+                            getProducerSubscription(mApi,
+                                    mWallpaperPreferences.getReloadRateInSeconds()
+                                    , mWallpaperPreferences.getPrefetchCount()
+                                    , mWallpaperPreferences.getSearchTerms());
                 }
             }
         }

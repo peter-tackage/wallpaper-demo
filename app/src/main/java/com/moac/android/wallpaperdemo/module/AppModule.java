@@ -1,8 +1,11 @@
 package com.moac.android.wallpaperdemo.module;
 
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.net.Uri;
 import android.util.Log;
 
+import com.moac.android.wallpaperdemo.R;
 import com.moac.android.wallpaperdemo.WallpaperApplication;
 import com.moac.android.wallpaperdemo.WallpaperDemoService;
 import com.moac.android.wallpaperdemo.api.ScRequestInterceptor;
@@ -11,8 +14,10 @@ import com.squareup.picasso.Picasso;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.annotation.Retention;
 import java.util.Properties;
 
+import javax.inject.Qualifier;
 import javax.inject.Singleton;
 
 import dagger.Provides;
@@ -21,6 +26,7 @@ import retrofit.RestAdapter;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.io.Closeables.closeQuietly;
+import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
 @dagger.Module(injects = {WallpaperDemoService.class})
 public class AppModule {
@@ -35,15 +41,16 @@ public class AppModule {
     @Provides
     @ApiProperties
     Properties provideApiProperties() {
+        final String filename = "soundcloud.properties";
         InputStream inputStream = null;
         try {
-            inputStream = application.getAssets().open("soundcloud.properties");
+            inputStream = application.getAssets().open(filename);
             Properties properties = new Properties();
             properties.load(inputStream);
             return properties;
         } catch (IOException e) {
-            Log.e(TAG, "Failed to read SoundCloud API properties file");
-            throw new RuntimeException(e);
+            Log.e(TAG, "Failed to read SoundCloud API properties file: " + filename, e);
+            throw new IllegalArgumentException(e);
         } finally {
             closeQuietly(inputStream);
         }
@@ -88,6 +95,21 @@ public class AppModule {
         return picasso;
     }
 
+    @Provides
+    @Singleton
+    @ForApplication
+    Context provideApplicationContext() {
+        return application.getApplicationContext();
+    }
+
+    @Provides
+    @Singleton
+    SharedPreferences provideWallpaperSharedPreferences() {
+        return application.getSharedPreferences(application.getString(R.string.wallpaper_settings_key), 0);
+    }
+
+    @Qualifier
+    @Retention(RUNTIME)
     private static @interface ApiProperties {
     }
 }

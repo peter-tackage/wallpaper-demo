@@ -1,4 +1,4 @@
-package com.moac.android.wallpaperdemo.model;
+package com.moac.android.wallpaperdemo.api.model;
 
 import com.google.gson.annotations.Expose;
 import com.google.gson.annotations.SerializedName;

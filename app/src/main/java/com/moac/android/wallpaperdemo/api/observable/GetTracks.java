@@ -1,7 +1,7 @@
 package com.moac.android.wallpaperdemo.api.observable;
 
 import com.moac.android.wallpaperdemo.api.SoundCloudClient;
-import com.moac.android.wallpaperdemo.model.Track;
+import com.moac.android.wallpaperdemo.api.model.Track;
 
 import java.util.List;
 

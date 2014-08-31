@@ -1,7 +1,7 @@
 package com.moac.android.wallpaperdemo.api;
 
 import com.moac.android.wallpaperdemo.api.observable.GetTracks;
-import com.moac.android.wallpaperdemo.model.Track;
+import com.moac.android.wallpaperdemo.api.model.Track;
 import rx.Observable;
 
 public class SoundCloudApi {

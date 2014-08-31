@@ -1,4 +1,4 @@
-package com.moac.android.wallpaperdemo.model;
+package com.moac.android.wallpaperdemo.api.model;
 
 import android.content.Context;
 import android.test.AndroidTestCase;

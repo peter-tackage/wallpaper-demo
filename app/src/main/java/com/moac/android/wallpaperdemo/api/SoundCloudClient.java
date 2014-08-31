@@ -1,7 +1,7 @@
 package com.moac.android.wallpaperdemo.api;
 
-import com.moac.android.wallpaperdemo.model.Track;
-import retrofit.Callback;
+import com.moac.android.wallpaperdemo.api.model.Track;
+
 import retrofit.http.GET;
 import retrofit.http.Query;
 
