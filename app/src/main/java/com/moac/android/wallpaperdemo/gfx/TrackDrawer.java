@@ -5,11 +5,13 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.RectF;
 import android.util.Log;
+
 import com.moac.android.wallpaperdemo.api.model.Track;
 
 public class TrackDrawer {
 
     private static final String TAG = TrackDrawer.class.getSimpleName();
+    private static final boolean VERBOSE_LOGGING = false;
 
     private static final int DEFAULT_BACKGROUND_COLOR = Color.LTGRAY;
     private static final int DEFAULT_WAVEFORM_COLOR = Color.WHITE;
@@ -45,7 +47,7 @@ public class TrackDrawer {
         final float[] waveform = track.getWaveformData();
 
         // Don't draw if we haven't got anything to draw!
-        if(waveform == null || waveform.length == 0) {
+        if (waveform == null || waveform.length == 0) {
             Log.w(TAG, "Track contains empty waveform: " + track.getId());
             return;
         }
@@ -53,24 +55,24 @@ public class TrackDrawer {
         // Draw background
         canvas.drawPaint(mBackgroundPaint);
 
-        Log.d(TAG, "drawOn() - data width: " + waveform.length);
-        Log.d(TAG, "drawOn() - canvas width: " + canvas.getWidth());
-        Log.d(TAG, "drawOn() - column width & padding width: " + mColumnWidthPx + "," + mColumnPaddingPx);
+        log_v(TAG, "drawOn() - data width: " + waveform.length);
+        log_v(TAG, "drawOn() - canvas width: " + canvas.getWidth());
+        log_v(TAG, "drawOn() - column width & padding width: " + mColumnWidthPx + "," + mColumnPaddingPx);
 
         float drawableWidth = canvas.getWidth() - mColumnPaddingPx;
-        Log.d(TAG, "drawOn() - usableWidth: " + drawableWidth);
+        log_v(TAG, "drawOn() - usableWidth: " + drawableWidth);
 
         // The number of whole columns that fit in the drawable width with the desired column spacing
         final int columns = (int) (drawableWidth / (mColumnPaddingPx));
-        Log.d(TAG, "drawOn() - columns: " + columns);
+        log_v(TAG, "drawOn() - columns: " + columns);
 
         // The remainder, we want to shift the columns to the centre of the available width.
         float remainder = drawableWidth % columns;
-        Log.d(TAG, "drawOn() - remainder: " + remainder);
+        log_v(TAG, "drawOn() - remainder: " + remainder);
 
         // The number of datapoints that contribute to a column
         final int datapoints = waveform.length / columns;
-        Log.d(TAG, "drawOn() - datapoint per column: " + datapoints);
+        log_v(TAG, "drawOn() - datapoint per column: " + datapoints);
 
         // Max height to be used by the waveform
         final int heightScalingFactor = canvas.getHeight() / 3;
@@ -80,14 +82,14 @@ public class TrackDrawer {
         float left = (mColumnPaddingPx + remainder) / 2; // initial margin
         float right = left + mColumnWidthPx;
 
-        for(int col = 0; col < columns; col++) {
-            Log.v(TAG, "drawOn() - drawing column: " + col);
-            Log.v(TAG, "drawOn() - waveform value: " + waveform[col * datapoints]);
+        for (int col = 0; col < columns; col++) {
+            log_v(TAG, "drawOn() - drawing column: " + col);
+            log_v(TAG, "drawOn() - waveform value: " + waveform[col * datapoints]);
             float columnLength = waveform[col * datapoints] * heightScalingFactor;
             float top = centreLine - (columnLength / 2);
             float bottom = top + columnLength;
 
-            Log.v(TAG, "drawOn() - left: " + left + " right: " + right + " top: " + top + " bottom: " + bottom);
+            log_v(TAG, "drawOn() - left: " + left + " right: " + right + " top: " + top + " bottom: " + bottom);
 
             RectF rect = new RectF(left, top, right, bottom);
             canvas.drawOval(rect, mWaveformPaint);
@@ -107,7 +109,7 @@ public class TrackDrawer {
     // Draws the circles on either top or bottom of the column
     private void drawTails(Canvas canvas, float left, float right, float initY, boolean isTop, int count) {
         float startY = initY;
-        for(int i = 0; i < count; i++) {
+        for (int i = 0; i < count; i++) {
             startY = isTop ? startY - mColumnWidthPx : startY + mColumnWidthPx;
             canvas.drawCircle(left + ((right - left) / 2f), startY, mColumnWidthPx / 2f, mWaveformPaint);
             startY = isTop ? startY - mColumnWidthPx : startY + mColumnWidthPx;  // Gap
@@ -143,5 +145,11 @@ public class TrackDrawer {
         hsv[1] *= 0.5;
         hsv[2] *= 1.5;
         return Color.HSVToColor(hsv);
+    }
+
+    private static void log_v(String tag, String msg) {
+        if (VERBOSE_LOGGING) {
+            Log.v(tag, msg);
+        }
     }
 }
