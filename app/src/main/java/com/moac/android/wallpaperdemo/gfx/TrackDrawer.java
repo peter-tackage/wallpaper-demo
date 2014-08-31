@@ -55,24 +55,24 @@ public class TrackDrawer {
         // Draw background
         canvas.drawPaint(mBackgroundPaint);
 
-        log_v(TAG, "drawOn() - data width: " + waveform.length);
-        log_v(TAG, "drawOn() - canvas width: " + canvas.getWidth());
-        log_v(TAG, "drawOn() - column width & padding width: " + mColumnWidthPx + "," + mColumnPaddingPx);
+        logV(TAG, "drawOn() - data width: " + waveform.length);
+        logV(TAG, "drawOn() - canvas width: " + canvas.getWidth());
+        logV(TAG, "drawOn() - column width & padding width: " + mColumnWidthPx + "," + mColumnPaddingPx);
 
         float drawableWidth = canvas.getWidth() - mColumnPaddingPx;
-        log_v(TAG, "drawOn() - usableWidth: " + drawableWidth);
+        logV(TAG, "drawOn() - usableWidth: " + drawableWidth);
 
         // The number of whole columns that fit in the drawable width with the desired column spacing
         final int columns = (int) (drawableWidth / (mColumnPaddingPx));
-        log_v(TAG, "drawOn() - columns: " + columns);
+        logV(TAG, "drawOn() - columns: " + columns);
 
         // The remainder, we want to shift the columns to the centre of the available width.
         float remainder = drawableWidth % columns;
-        log_v(TAG, "drawOn() - remainder: " + remainder);
+        logV(TAG, "drawOn() - remainder: " + remainder);
 
         // The number of datapoints that contribute to a column
         final int datapoints = waveform.length / columns;
-        log_v(TAG, "drawOn() - datapoint per column: " + datapoints);
+        logV(TAG, "drawOn() - datapoint per column: " + datapoints);
 
         // Max height to be used by the waveform
         final int heightScalingFactor = canvas.getHeight() / 3;
@@ -83,13 +83,13 @@ public class TrackDrawer {
         float right = left + mColumnWidthPx;
 
         for (int col = 0; col < columns; col++) {
-            log_v(TAG, "drawOn() - drawing column: " + col);
-            log_v(TAG, "drawOn() - waveform value: " + waveform[col * datapoints]);
+            logV(TAG, "drawOn() - drawing column: " + col);
+            logV(TAG, "drawOn() - waveform value: " + waveform[col * datapoints]);
             float columnLength = waveform[col * datapoints] * heightScalingFactor;
             float top = centreLine - (columnLength / 2);
             float bottom = top + columnLength;
 
-            log_v(TAG, "drawOn() - left: " + left + " right: " + right + " top: " + top + " bottom: " + bottom);
+            logV(TAG, "drawOn() - left: " + left + " right: " + right + " top: " + top + " bottom: " + bottom);
 
             RectF rect = new RectF(left, top, right, bottom);
             canvas.drawOval(rect, mWaveformPaint);
@@ -147,7 +147,7 @@ public class TrackDrawer {
         return Color.HSVToColor(hsv);
     }
 
-    private static void log_v(String tag, String msg) {
+    private static void logV(String tag, String msg) {
         if (VERBOSE_LOGGING) {
             Log.v(tag, msg);
         }

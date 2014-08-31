@@ -299,7 +299,7 @@ public class WallpaperDemoService extends WallpaperService {
                 Log.i(TAG, "Cancelling API subscription sleep deadline");
                 mMainThreadHandler.removeCallbacks(mDeadlineRunnable);
                 if (mProducerSubscription.isUnsubscribed()) {
-                    Log.i(TAG, "Restarting API subscription sleep deadline");
+                    Log.i(TAG, "Restarting API subscription");
                     // Need to recreate the subscription once is has been unsubscribed
                     mProducerSubscription = new CompositeSubscription(createProducerSubscription(mApi
                             , mWallpaperPreferences.getReloadRateInSeconds()
