@@ -15,6 +15,7 @@ import android.util.Log;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
+import android.view.ViewConfiguration;
 
 import com.moac.android.wallpaperdemo.api.SoundCloudClient;
 import com.moac.android.wallpaperdemo.api.model.Track;
@@ -178,7 +179,7 @@ public class WallpaperDemoService extends WallpaperService {
 
         private void validateDoubleTap() {
             mMainThreadHandler.removeCallbacks(mDoubleTapTimeout);
-            mMainThreadHandler.postDelayed(mDoubleTapTimeout, 500);
+            mMainThreadHandler.postDelayed(mDoubleTapTimeout, ViewConfiguration.getDoubleTapTimeout());
         }
 
         private GestureDetector mDoubleTapDetector = new GestureDetector(WallpaperDemoService.this,
