@@ -1,51 +1,44 @@
 package com.moac.android.wallpaperdemo.util;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
+import android.test.AndroidTestCase;
 
 import java.util.Arrays;
 
-import static org.hamcrest.core.IsEqual.equalTo;
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
-@RunWith(JUnit4.class)
-public class NumberUtilsTest {
+// Sadly not using JUnit 4
+public class NumberUtilsTest extends AndroidTestCase {
 
     /**
      * Sanity check tests
      */
 
-    @Test
     public void test_nullInputShouldThrow() {
         try {
-            NumberUtils.getRandomElement((Integer[])null);
+            NumberUtils.getRandomElement((Integer[]) null);
             fail("Null array should throw IllegalArgumentException");
-        } catch(IllegalArgumentException e) {
+        } catch (IllegalArgumentException e) {
             // Pass!
         }
     }
 
-    @Test
     public void test_zeroLengthInputShouldThrow() {
         Integer[] ints = new Integer[0];
         try {
             NumberUtils.getRandomElement(ints);
             fail("Empty array should throw IllegalArgumentException");
-        } catch(IllegalArgumentException e) {
+        } catch (IllegalArgumentException e) {
             // Pass!
         }
     }
 
-    @Test
     public void test_oneElementInputReturnsElement() {
-        Integer[] ints = { 1 };
-        assertThat(NumberUtils.getRandomElement(ints), equalTo(1));
+        Integer[] ints = {1};
+        assertThat(NumberUtils.getRandomElement(ints)).isEqualTo(1);
     }
 
-    @Test
     public void test_moreThanOneLengthReturnsValue() {
-        Integer[] ints = { 1, 2 };
-        assertTrue(Arrays.asList(ints).contains(NumberUtils.getRandomElement(ints)));
+        Integer[] ints = {1, 2};
+        assertThat(Arrays.asList(ints).contains(NumberUtils.getRandomElement(ints)));
     }
 }

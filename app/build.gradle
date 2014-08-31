@@ -16,7 +16,6 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.txt'
         }
     }
-
 }
 
 dependencies {
@@ -29,4 +28,6 @@ dependencies {
 
     compile 'com.netflix.rxjava:rxjava-core:0.20.0-RC1'
     compile 'com.netflix.rxjava:rxjava-android:0.20.0-RC1'
+
+    androidTestCompile 'com.squareup.assertj:assertj-android:1.0.0'
 }
