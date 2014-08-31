@@ -10,8 +10,11 @@ import android.graphics.Paint;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
 import android.service.wallpaper.WallpaperService;
 import android.util.Log;
+import android.view.GestureDetector;
+import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 
 import com.moac.android.wallpaperdemo.api.SoundCloudApi;
@@ -148,13 +151,14 @@ public class WallpaperDemoService extends WallpaperService {
 
         final private Lock mLock;
         final private Condition mTracksExist;
-        final private Handler mHandler;
+        final private Handler mMainThreadHandler = new Handler(Looper.getMainLooper());
 
+        // Shutdown when inactive
         private Runnable mDeadlineRunnable = new Runnable() {
             @Override
             public void run() {
                 Log.i(TAG, "Unsubscribing from API due to inactivity");
-                unsubscribe(mProducerSubscription);
+                unsubscribeSafely(mProducerSubscription);
                 mProducerSubscription = null;
             }
         };
@@ -168,13 +172,34 @@ public class WallpaperDemoService extends WallpaperService {
             }
         };
 
+        private boolean mIsDoubleTap;
+        private final Runnable mDoubleTapTimeout = new Runnable() {
+            @Override
+            public void run() {
+                mIsDoubleTap = false;
+            }
+        };
+
+        private void validateDoubleTap() {
+            mMainThreadHandler.removeCallbacks(mDoubleTapTimeout);
+            mMainThreadHandler.postDelayed(mDoubleTapTimeout, 500);
+        }
+
+        private GestureDetector mDoubleTapDetector = new GestureDetector(WallpaperDemoService.this,
+                new GestureDetector.SimpleOnGestureListener() {
+                    @Override
+                    public boolean onDoubleTap(MotionEvent e) {
+                        mIsDoubleTap = true;
+                        validateDoubleTap();
+                        return true;
+                    }
+                });
+
         // Get more at http://dribbble.com/colors/<value>
         private final Integer[] mPrettyColors =
                 {0xFF434B52, 0xFF54B395, 0xFFD1654C, 0xFFD6B331, 0xFF3D4348,
                         0xFFA465C5, 0xFF5661DE, 0xFF4AB498, 0xFFFA7B68, 0xFFFF6600,
                         0xFF669900, 0xFF66CCCC};
-
-        private long mLastCommandTime;
 
         // Debug info
         private int mDebugApiCalls = 0;
@@ -184,7 +209,6 @@ public class WallpaperDemoService extends WallpaperService {
         public WallpaperEngine() {
             mLock = new ReentrantLock();
             mTracksExist = mLock.newCondition();
-            mHandler = new Handler();
         }
 
         @Override
@@ -193,12 +217,8 @@ public class WallpaperDemoService extends WallpaperService {
             super.onCreate(surfaceHolder);
             setTouchEventsEnabled(true);
 
-            mTracks = new LinkedList<Track>();
-
-            // Configure the TrackDrawer
             mTrackDrawer = new TrackDrawer(10, 10);
             mTracks = new LinkedList<Track>();
-
             mWallpaperPreferences.addChangeListener(this);
 
             // Start drawing
@@ -207,7 +227,7 @@ public class WallpaperDemoService extends WallpaperService {
 
         @Override
         public void onSharedPreferenceChanged(SharedPreferences prefs, String key) {
-            Log.d(TAG, "onSharedPreferenceChanged() - Notified: " + prefs);
+            Log.d(TAG, "onSharedPreferenceChanged()");
             startFromPreferences();
         }
 
@@ -248,19 +268,20 @@ public class WallpaperDemoService extends WallpaperService {
         }
 
         @Override
+        public void onTouchEvent(MotionEvent event) {
+            mDoubleTapDetector.onTouchEvent(event);
+        }
+
+        @Override
         public Bundle onCommand(String action, int x, int y, int z,
                                 Bundle extras, boolean resultRequested) {
-            if (action.equals(WallpaperManager.COMMAND_TAP)) {
-                long time = android.os.SystemClock.elapsedRealtime();
-                // Look for taps in the double-tap window (in ms)
-                if (((time - mLastCommandTime) < 500)
-                        && ((time - mLastCommandTime) > 100) && mCurrentTrack != null) {
-                    // Double tap = view track
-                    openUrl(mCurrentTrack.getPermalinkUrl());
-                }
-                mLastCommandTime = time;
+            if (action.equals(WallpaperManager.COMMAND_TAP) && mIsDoubleTap) {
+                // Double tap => view track
+                openUrl(mCurrentTrack.getPermalinkUrl());
+                // We've handled the double tap, so reset flag
+                mIsDoubleTap = false;
             }
-            return null;
+            return super.onCommand(action, x, y, z, extras, resultRequested);
         }
 
         @Override
@@ -274,12 +295,12 @@ public class WallpaperDemoService extends WallpaperService {
             Log.d(TAG, "onVisibilityChanged() isVisible: " + isVisible);
             if (!isVisible) {
                 Log.i(TAG, "Preparing API subscription for possible sleep");
-                mHandler.postDelayed(mDeadlineRunnable, TimeUnit.MILLISECONDS.
+                mMainThreadHandler.postDelayed(mDeadlineRunnable, TimeUnit.MILLISECONDS.
                         convert(mWallpaperPreferences.getReloadRateInSeconds(), TimeUnit.SECONDS));
             } else {
                 // And we're back! Cancel the deadline, resubscribe if it expired.
                 Log.i(TAG, "Cancelling API subscription sleep deadline");
-                mHandler.removeCallbacks(mDeadlineRunnable);
+                mMainThreadHandler.removeCallbacks(mDeadlineRunnable);
                 if (mProducerSubscription == null) {
                     Log.i(TAG, "Restarting API subscription sleep deadline");
                     mProducerSubscription =
@@ -400,7 +421,8 @@ public class WallpaperDemoService extends WallpaperService {
                     } finally {
                         mLock.unlock();
                     }
-                    mHandler.post(mDrawRunnable); // post drawing to handler.
+                    mMainThreadHandler.post(mDoubleTapTimeout); // change track, invalidates double tap
+                    mMainThreadHandler.post(mDrawRunnable); // post draw event
                 }
             }, 0, drawRate, TimeUnit.SECONDS);
         }
@@ -422,25 +444,25 @@ public class WallpaperDemoService extends WallpaperService {
         private void unsubscribeAll() {
             cancelCallbacks();
 
-            unsubscribe(mConsumerSubscription);
+            unsubscribeSafely(mConsumerSubscription);
             mConsumerSubscription = null;
 
-            unsubscribe(mWorkerSubscription);
+            unsubscribeSafely(mWorkerSubscription);
             mWorkerSubscription = null;
 
-            unsubscribe(mProducerSubscription);
+            unsubscribeSafely(mProducerSubscription);
             mProducerSubscription = null;
         }
 
-        private void unsubscribe(Subscription sub) {
-            if (sub != null) {
+        private void unsubscribeSafely(Subscription sub) {
+            if (sub != null && !sub.isUnsubscribed()) {
                 sub.unsubscribe();
             }
         }
 
         private void cancelCallbacks() {
-            mHandler.removeCallbacks(mDeadlineRunnable);
-            mHandler.removeCallbacks(mDrawRunnable);
+            mMainThreadHandler.removeCallbacks(mDeadlineRunnable);
+            mMainThreadHandler.removeCallbacks(mDrawRunnable);
         }
 
         /*
@@ -461,8 +483,9 @@ public class WallpaperDemoService extends WallpaperService {
                     // drawDebug(c);
                 }
             } finally {
-                if (c != null)
+                if (c != null) {
                     holder.unlockCanvasAndPost(c);
+                }
             }
             Log.i(TAG, "draw() - end");
         }
