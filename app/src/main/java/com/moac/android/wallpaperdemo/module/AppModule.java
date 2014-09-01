@@ -75,7 +75,7 @@ public class AppModule {
         return new RestAdapter.Builder()
                 .setEndpoint(apiUrl)
                 .setRequestInterceptor(ri)
-                .setLogLevel(RestAdapter.LogLevel.FULL)
+                .setLogLevel(RestAdapter.LogLevel.BASIC)
                 .build();
     }
 
@@ -91,7 +91,6 @@ public class AppModule {
     Picasso providePicasso() {
         Log.i(TAG, "Providing Picasso");
         Picasso picasso = Picasso.with(application);
-        picasso.setLoggingEnabled(true);
         return picasso;
     }
 
