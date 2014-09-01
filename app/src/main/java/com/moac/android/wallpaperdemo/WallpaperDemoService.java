@@ -20,26 +20,16 @@ import android.view.ViewConfiguration;
 import com.moac.android.wallpaperdemo.api.SoundCloudClient;
 import com.moac.android.wallpaperdemo.api.model.Track;
 import com.moac.android.wallpaperdemo.gfx.TrackDrawer;
-import com.moac.android.wallpaperdemo.observable.TrackObservables;
 import com.moac.android.wallpaperdemo.util.NumberUtils;
 import com.squareup.picasso.Picasso;
 
-import java.util.LinkedList;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
 import javax.inject.Inject;
 
-import rx.Observer;
 import rx.Subscription;
-import rx.android.schedulers.AndroidSchedulers;
 import rx.functions.Action0;
 import rx.schedulers.Schedulers;
-import rx.subscriptions.CompositeSubscription;
-
-import static com.moac.android.wallpaperdemo.util.DeviceUtils.isNetworkAvailable;
 
 /**
  * This is a demo of a live wallpaper using data retrieved from the SoundCloud API.
@@ -123,6 +113,12 @@ public class WallpaperDemoService extends WallpaperService {
 
     private static final String TAG = WallpaperDemoService.class.getSimpleName();
 
+    // Get more at http://dribbble.com/colors/<value>
+    private static final Integer[] PRETTY_COLORS =
+            {0xFF434B52, 0xFF54B395, 0xFFD1654C, 0xFFD6B331, 0xFF3D4348,
+                    0xFFA465C5, 0xFF5661DE, 0xFF4AB498, 0xFFFA7B68, 0xFFFF6600,
+                    0xFF669900, 0xFF66CCCC};
+
     @Inject
     SoundCloudClient mApi;
     @Inject
@@ -140,18 +136,15 @@ public class WallpaperDemoService extends WallpaperService {
     // Dagger can't see this class, must DI into the Service instead
     protected class WallpaperEngine extends Engine implements SharedPreferences.OnSharedPreferenceChangeListener {
 
-        // FIXME(PT) Could this be a Subject, instead
-        private CompositeSubscription mProducerSubscription = new CompositeSubscription();
+        private Subscription mProducerSubscription;
         private Subscription mConsumerSubscription;
+        private TrackProvider mTrackProvider;
         private TrackDrawer mTrackDrawer;
-        private LinkedList<Track> mTracks;
         private Track mCurrentTrack;
 
-        final private Lock mLock;
-        final private Condition mTracksExist;
         final private Handler mMainThreadHandler = new Handler(Looper.getMainLooper());
 
-        // Shutdown when inactive
+        // Shutdown API subscription when inactive
         private Runnable mDeadlineRunnable = new Runnable() {
             @Override
             public void run() {
@@ -163,8 +156,8 @@ public class WallpaperDemoService extends WallpaperService {
             @Override
             public void run() {
                 Log.i(TAG, "Executing Draw Runnable");
-                mCurrentTrack = getTrack();
-                mTrackDrawer.setColor(NumberUtils.getRandomElement(mPrettyColors));
+                mCurrentTrack = mTrackProvider.getNextTrack();
+                mTrackDrawer.setColor(NumberUtils.getRandomElement(PRETTY_COLORS));
                 draw(mTrackDrawer, mCurrentTrack);
             }
         };
@@ -192,59 +185,44 @@ public class WallpaperDemoService extends WallpaperService {
                     }
                 });
 
-        // Get more at http://dribbble.com/colors/<value>
-        private final Integer[] mPrettyColors =
-                {0xFF434B52, 0xFF54B395, 0xFFD1654C, 0xFFD6B331, 0xFF3D4348,
-                        0xFFA465C5, 0xFF5661DE, 0xFF4AB498, 0xFFFA7B68, 0xFFFF6600,
-                        0xFF669900, 0xFF66CCCC};
-
-        // Debug info
-        private int mDebugApiCalls = 0;
-        private int mDebugBlockedApiCalls = 0;
-        private int mDebugFailedApiCalls = 0;
-
-        public WallpaperEngine() {
-            mLock = new ReentrantLock();
-            mTracksExist = mLock.newCondition();
-        }
-
         @Override
         public void onCreate(SurfaceHolder surfaceHolder) {
             Log.i(TAG, "onCreate() - Creating new WallpaperEngine instance: " + this);
             super.onCreate(surfaceHolder);
             setTouchEventsEnabled(true);
 
+            mTrackProvider = new TrackProvider(getApplicationContext(), mApi, mPicasso);
             mTrackDrawer = new TrackDrawer(10, 10);
-            mTracks = new LinkedList<Track>();
             mWallpaperPreferences.addChangeListener(this);
 
             // Start drawing
-            startFromPreferences();
+            startAll();
         }
 
         @Override
         public void onSharedPreferenceChanged(SharedPreferences prefs, String key) {
             Log.d(TAG, "onSharedPreferenceChanged()");
-            startFromPreferences();
+            unsubscribeAll();
+            startAll();
         }
 
-        private void startFromPreferences() {
-            String searchTerm = mWallpaperPreferences.getSearchTerm();
+        private void startAll() {
+            startProducer();
+            startConsumer();
+        }
+
+        private void startConsumer() {
             int drawRate = mWallpaperPreferences.getDrawRateInSeconds();
+            Log.i(TAG, String.format("Starting Consumer - Draw Rate: %d", drawRate));
+            mConsumerSubscription = createConsumerSubscription(drawRate);
+        }
+
+        private void startProducer() {
+            String searchTerm = mWallpaperPreferences.getSearchTerm();
             int reloadRate = mWallpaperPreferences.getReloadRateInSeconds();
             int prefetchCount = mWallpaperPreferences.getPrefetchCount();
-            start(searchTerm, drawRate, reloadRate, prefetchCount);
-        }
-
-        private void start(String searchTerm, int drawRate, int reloadRate, int prefetchCount) {
-            String values = String.format("Search Term: %s, Draw Rate: %s, Reload Rate: %s, Prefetch Count: %s",
-                    searchTerm, drawRate, reloadRate, prefetchCount);
-            Log.i(TAG, "Starting Engine with configuration: " + values);
-
-            // TODO We could be smart here - only restart the relevant components
-            unsubscribeAll(); // Is this a little paranoid? Perhaps should only be in onSharedPreferenceChanged
-            mConsumerSubscription = createConsumerSubscription(drawRate);
-            mProducerSubscription.add(createProducerSubscription(mApi, reloadRate, prefetchCount, searchTerm));
+            Log.i(TAG, String.format("Starting Producer - Search Term: %s, Reload Rate: %d, Prefetch Count: %d", searchTerm, reloadRate, prefetchCount));
+            mProducerSubscription = createProducerSubscription(reloadRate, prefetchCount, searchTerm);
         }
 
         @Override
@@ -286,10 +264,9 @@ public class WallpaperDemoService extends WallpaperService {
             super.onVisibilityChanged(isVisible);
             /*
              * If the canvas is not visible, set a deadline for visibility that
-             * if reached will cancel the subscription: don't download data that
+             * if reached will cancel the producer subscription: don't download data that
              * is not likely to be seen
              */
-            Log.d(TAG, "onVisibilityChanged() isVisible: " + isVisible);
             if (!isVisible) {
                 Log.i(TAG, "Preparing API subscription for possible sleep");
                 mMainThreadHandler.postDelayed(mDeadlineRunnable, TimeUnit.MILLISECONDS.
@@ -300,11 +277,7 @@ public class WallpaperDemoService extends WallpaperService {
                 mMainThreadHandler.removeCallbacks(mDeadlineRunnable);
                 if (mProducerSubscription.isUnsubscribed()) {
                     Log.i(TAG, "Restarting API subscription");
-                    // Need to recreate the subscription once is has been unsubscribed
-                    mProducerSubscription = new CompositeSubscription(createProducerSubscription(mApi
-                            , mWallpaperPreferences.getReloadRateInSeconds()
-                            , mWallpaperPreferences.getPrefetchCount()
-                            , mWallpaperPreferences.getSearchTerm()));
+                    startProducer();
                 }
             }
         }
@@ -314,99 +287,29 @@ public class WallpaperDemoService extends WallpaperService {
          *
          * "A subscription to periodically subscribe to the API observable"
          */
-        private Subscription createProducerSubscription(final SoundCloudClient api, int reloadRate,
-                                                        final int limit, final String searchTerm) {
-            Log.i(TAG, "createProducerSubscription() - reloadRate: " + reloadRate + ", limit: " + limit + ", searchTerm: " + searchTerm);
-            return AndroidSchedulers.mainThread().createWorker().schedulePeriodically(new Action0() {
-                @Override
-                public void call() {
-                    if (!isNetworkAvailable(WallpaperDemoService.this)) {
-                        Log.i(TAG, "createProducerSubscription() - network unavailable");
-                        mDebugBlockedApiCalls++;
-                        return;
-                    }
-                    Log.i(TAG, "createProducerSubscription() - ### POTENTIAL NETWORK CALL ###");
-                    mDebugApiCalls++;
-
-                    // Fetch a new set of track & waveforms from the API - observed in io thread
-                    // FIXME(PT) I'm not quite sure here, I think that if unsubscribe from the producer,
-                    // then we should also unsubscribe from its underlying worker subscription
-                    mProducerSubscription.add(TrackObservables.from(api.getTracks(searchTerm, limit), mPicasso)
-                            .subscribe(new Observer<Track>() {
-
-                                @Override
-                                public void onNext(Track response) {
-                                    Log.i(TAG, "onNext() producer. Track received: " + response.getTitle());
-
-                                    // Keep some tracks in the list, let new ones slowly take their place.
-                                    // You get a mixture of tracks when result set < limit.
-                                    if (mTracks.size() >= limit) {
-                                        mTracks.removeFirst();
-                                    }
-                                    mTracks.addLast(response);
-                                    mLock.lock();
-                                    try {
-                                        mTracksExist.signalAll();
-                                    } finally {
-                                        mLock.unlock();
-                                    }
-                                }
-
-                                @Override
-                                public void onCompleted() {
-                                }
-
-                                @Override
-                                public void onError(Throwable e) {
-                                    Log.w(TAG, "PeriodFetchSubscription#onError()", e);
-                                    // TODO Display message if nothing else to show.
-                                    // Note: There may still be tracks in mTracks
-                                    mDebugFailedApiCalls++;
-                                }
-                            }));
-                }
-            }, 0, reloadRate, TimeUnit.SECONDS); // um, TimeUnit.MINUTES enum didn't exist until API Level 9!
+        private Subscription createProducerSubscription(int reloadRateSec, final int limit, final String searchTerm) {
+            return mTrackProvider.getTrackPeriodically(searchTerm, limit, reloadRateSec);
         }
 
         /*
          * Creates a periodic "consumer" Subscription to draw a track's waveform
          */
         private Subscription createConsumerSubscription(int drawRate) {
-            Log.i(TAG, "createConsumerSubscription() - drawRate: " + drawRate);
             return Schedulers.newThread().createWorker().schedulePeriodically(new Action0() {
                 @Override
                 public void call() {
-                    Log.i(TAG, "call() - consumer");
-                    mLock.lock();
                     try {
-                        while (mTracks == null || mTracks.isEmpty()) {
-                            mTracksExist.await();
-                        }
+                        mTrackProvider.waitUntilReady();
                     } catch (InterruptedException e) {
-                        // We've been interrupted. Not entirely sure what to do
-                        Log.w(TAG, "Consumer Thread interrupted: ", e);
+                        // We've been interrupted when waiting for producer
+                        Log.d(TAG, "Consumer Thread interrupted");
                         Thread.currentThread().interrupt();
-                        return;
-                    } finally {
-                        mLock.unlock();
                     }
+                    // Post to main thread
                     mMainThreadHandler.post(mDoubleTapTimeout); // change track, invalidates double tap
                     mMainThreadHandler.post(mDrawRunnable); // post draw event
                 }
             }, 0, drawRate, TimeUnit.SECONDS);
-        }
-
-        // Quick little hack to make a pseudo-circular queue
-        private Track getTrack() {
-            if (mTracks == null || mTracks.size() == 0)
-                return null;
-
-            if (mTracks.size() == 1)
-                return mTracks.getFirst();
-
-            Track first = mTracks.removeFirst();
-            mTracks.addLast(first);
-            return mTracks.getFirst();
         }
 
         // Unsubscribes from all subscriptions.
@@ -423,6 +326,7 @@ public class WallpaperDemoService extends WallpaperService {
         }
 
         private void cancelCallbacks() {
+            mMainThreadHandler.removeCallbacks(mDoubleTapTimeout);
             mMainThreadHandler.removeCallbacks(mDeadlineRunnable);
             mMainThreadHandler.removeCallbacks(mDrawRunnable);
         }
@@ -431,7 +335,6 @@ public class WallpaperDemoService extends WallpaperService {
          * Draws the current track or a placeholder on a canvas
          */
         public void draw(TrackDrawer drawer, Track track) {
-            Log.i(TAG, "draw() - start: " + this + " on: " + Thread.currentThread());
             final SurfaceHolder holder = getSurfaceHolder();
             Canvas c = null;
             try {
@@ -442,19 +345,16 @@ public class WallpaperDemoService extends WallpaperService {
                     } else {
                         drawPlaceholderOn(c);
                     }
-                    // drawDebug(c);
                 }
             } finally {
                 if (c != null) {
                     holder.unlockCanvasAndPost(c);
                 }
             }
-            Log.i(TAG, "draw() - end");
         }
 
         // Placeholder screen implementation
         private void drawPlaceholderOn(Canvas canvas) {
-            Log.i(TAG, "drawPlaceholderOn() - start");
             Paint textPaint = new Paint();
             textPaint.setColor(Color.WHITE);
             textPaint.setTextAlign(Paint.Align.CENTER);
@@ -474,14 +374,5 @@ public class WallpaperDemoService extends WallpaperService {
             }
         }
 
-        // Writes debug info on the canvas.
-        private void drawDebug(Canvas canvas) {
-            Log.i(TAG, "drawDebug() - start");
-            Paint textPaint = new Paint();
-            textPaint.setColor(Color.BLACK);
-            textPaint.setTextSize(24);
-            String msg = String.format("API calls made: %d, blocked %d, failed %d, tracks: %d", mDebugApiCalls, mDebugBlockedApiCalls, mDebugFailedApiCalls, mTracks.size());
-            canvas.drawText(msg, 0, canvas.getHeight(), textPaint);
-        }
     }
 }
