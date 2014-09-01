@@ -299,15 +299,15 @@ public class WallpaperDemoService extends WallpaperService {
                 @Override
                 public void call() {
                     try {
+                        // Get Tracks as soon as they are available (not at the drawRate)
                         mTrackProvider.waitUntilReady();
+                        mMainThreadHandler.post(mDoubleTapTimeout); // change track, invalidates double tap
+                        mMainThreadHandler.post(mDrawRunnable); // post draw event
                     } catch (InterruptedException e) {
                         // We've been interrupted when waiting for producer
                         Log.d(TAG, "Consumer Thread interrupted");
                         Thread.currentThread().interrupt();
                     }
-                    // Post to main thread
-                    mMainThreadHandler.post(mDoubleTapTimeout); // change track, invalidates double tap
-                    mMainThreadHandler.post(mDrawRunnable); // post draw event
                 }
             }, 0, drawRate, TimeUnit.SECONDS);
         }
