@@ -43,8 +43,6 @@ public class TrackProvider {
     }
 
     public Subscription getTrackPeriodically(final String searchTerm, final long limit, long reloadPeriodSec) {
-
-
         return AndroidSchedulers.mainThread().createWorker().schedulePeriodically(new Action0() {
             @Override
             public void call() {
