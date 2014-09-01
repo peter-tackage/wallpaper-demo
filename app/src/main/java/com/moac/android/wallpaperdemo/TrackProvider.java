@@ -18,6 +18,7 @@ import rx.Observer;
 import rx.Subscription;
 import rx.android.schedulers.AndroidSchedulers;
 import rx.functions.Action0;
+import rx.subscriptions.CompositeSubscription;
 
 import static com.moac.android.wallpaperdemo.util.DeviceUtils.isNetworkAvailable;
 
@@ -42,23 +43,24 @@ public class TrackProvider {
         mTracksExist = mLock.newCondition();
     }
 
-    public Subscription getTrackPeriodically(final String searchTerm, final long limit, long reloadPeriodSec) {
-        return AndroidSchedulers.mainThread().createWorker().schedulePeriodically(new Action0() {
+    public Subscription loadTracksPeriodically(final String searchTerm, final long limit, long reloadPeriodSec) {
+        final CompositeSubscription subscription = new CompositeSubscription();
+        subscription.add(AndroidSchedulers.mainThread().createWorker().schedulePeriodically(new Action0() {
             @Override
             public void call() {
                 if (!isNetworkAvailable(mContext)) {
-                    Log.i(TAG, "getTrackPeriodically() - network unavailable");
+                    Log.i(TAG, "loadTracksPeriodically() - network unavailable");
                     return;
                 }
-                Log.i(TAG, "getTrackPeriodically() - ### POTENTIAL NETWORK CALL ###");
+                Log.i(TAG, "loadTracksPeriodically() - ### POTENTIAL NETWORK CALL ###");
 
                 // Fetch a new set of track & waveforms from the API - observed in io thread
-                TrackObservables.from(mApi.getTracks(searchTerm, limit), mPicasso).subscribe(
+                subscription.add(TrackObservables.from(mApi.getTracks(searchTerm, limit), mPicasso).subscribe(
                         new Observer<Track>() {
 
                             @Override
                             public void onNext(Track response) {
-                                Log.i(TAG, "getTrackPeriodically() - Track received: " + response.getTitle());
+                                Log.i(TAG, "loadTracksPeriodically() - Track received: " + response.getTitle());
 
                                 // Keep some tracks in the list, let new ones slowly take their place.
                                 // You get a mixture of tracks when result set size < limit.
@@ -80,15 +82,16 @@ public class TrackProvider {
 
                             @Override
                             public void onError(Throwable e) {
-                                Log.w(TAG, "getTrackPeriodically() onError()", e);
+                                Log.w(TAG, "loadTracksPeriodically() onError()", e);
                                 // TODO Display message if nothing else to show.
                                 // Note: There may still be tracks in mTracks
                             }
                         }
-                );
+                ));
 
             }
-        }, 0, reloadPeriodSec, TimeUnit.SECONDS); // um, TimeUnit.MINUTES enum didn't exist until API Level 9!
+        }, 0, reloadPeriodSec, TimeUnit.SECONDS)); // um, TimeUnit.MINUTES enum didn't exist until API Level 9!
+        return subscription;
     }
 
     public void waitUntilReady() throws InterruptedException {

@@ -288,7 +288,7 @@ public class WallpaperDemoService extends WallpaperService {
          * "A subscription to periodically subscribe to the API observable"
          */
         private Subscription createProducerSubscription(int reloadRateSec, final int limit, final String searchTerm) {
-            return mTrackProvider.getTrackPeriodically(searchTerm, limit, reloadRateSec);
+            return mTrackProvider.loadTracksPeriodically(searchTerm, limit, reloadRateSec);
         }
 
         /*
