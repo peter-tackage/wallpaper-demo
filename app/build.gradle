@@ -6,7 +6,7 @@ android {
 
     defaultConfig {
         applicationId "com.moac.android.wallpaperdemo"
-        minSdkVersion 7
+        minSdkVersion 11
         targetSdkVersion 20
     }
 

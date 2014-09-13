@@ -3,7 +3,7 @@ package com.moac.android.wallpaperdemo;
 import android.content.Context;
 import android.content.SharedPreferences;
 
-import com.moac.android.wallpaperdemo.module.ForApplication;
+import com.moac.android.wallpaperdemo.module.AppModule;
 
 import javax.inject.Inject;
 
@@ -18,7 +18,7 @@ public class WallpaperPreferences {
     private final SharedPreferences sharedPreferences;
 
     @Inject
-    public WallpaperPreferences(@ForApplication Context appContext, SharedPreferences sharedPreferences) {
+    public WallpaperPreferences(@AppModule.ForApplication Context appContext, SharedPreferences sharedPreferences) {
         this.appContext = appContext;
         this.sharedPreferences = sharedPreferences;
     }

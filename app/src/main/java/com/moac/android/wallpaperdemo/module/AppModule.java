@@ -24,8 +24,8 @@ import dagger.Provides;
 import retrofit.RequestInterceptor;
 import retrofit.RestAdapter;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.io.Closeables.closeQuietly;
+import static com.moac.android.wallpaperdemo.util.Preconditions.checkNotNull;
+import static com.moac.android.wallpaperdemo.util.Streams.closeQuietly;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
 @dagger.Module(injects = {WallpaperDemoService.class})
@@ -49,7 +49,8 @@ public class AppModule {
             properties.load(inputStream);
             return properties;
         } catch (IOException e) {
-            Log.e(TAG, "Failed to read SoundCloud API properties file: " + filename, e);
+            Log.e(TAG,
+                    String.format("Failed to read SoundCloud API properties file: %s. Have you forgotten to add the file to your assets dir?", filename), e);
             throw new IllegalArgumentException(e);
         } finally {
             closeQuietly(inputStream);
@@ -90,8 +91,7 @@ public class AppModule {
     @Singleton
     Picasso providePicasso() {
         Log.i(TAG, "Providing Picasso");
-        Picasso picasso = Picasso.with(application);
-        return picasso;
+        return Picasso.with(application);
     }
 
     @Provides
@@ -105,6 +105,11 @@ public class AppModule {
     @Singleton
     SharedPreferences provideWallpaperSharedPreferences() {
         return application.getSharedPreferences(application.getString(R.string.wallpaper_settings_key), 0);
+    }
+
+    @Qualifier
+    @Retention(RUNTIME)
+    public static @interface ForApplication {
     }
 
     @Qualifier

@@ -267,18 +267,18 @@ public class WallpaperDemoService extends WallpaperService {
              * if reached will cancel the producer subscription: don't download data that
              * is not likely to be seen
              */
-            if (!isVisible) {
-                Log.i(TAG, "Preparing API subscription for possible sleep");
-                mMainThreadHandler.postDelayed(mDeadlineRunnable, TimeUnit.MILLISECONDS.
-                        convert(mWallpaperPreferences.getReloadRateInSeconds(), TimeUnit.SECONDS));
-            } else {
-                // And we're back! Cancel the deadline, resubscribe if it expired.
+            if (isVisible) {
+                // We're back! Cancel the deadline, resubscribe if it expired.
                 Log.i(TAG, "Cancelling API subscription sleep deadline");
                 mMainThreadHandler.removeCallbacks(mDeadlineRunnable);
                 if (mProducerSubscription.isUnsubscribed()) {
                     Log.i(TAG, "Restarting API subscription");
                     startProducer();
                 }
+            } else {
+                Log.i(TAG, "Preparing API subscription for possible sleep");
+                mMainThreadHandler.postDelayed(mDeadlineRunnable, TimeUnit.MILLISECONDS.
+                        convert(mWallpaperPreferences.getReloadRateInSeconds(), TimeUnit.SECONDS));
             }
         }
 
@@ -300,6 +300,7 @@ public class WallpaperDemoService extends WallpaperService {
                 public void call() {
                     try {
                         // Get Tracks as soon as they are available (not at the drawRate)
+                        Log.i(TAG, "Waiting until ready: " + Thread.currentThread().toString());
                         mTrackProvider.waitUntilReady();
                         mMainThreadHandler.post(mDoubleTapTimeout); // change track, invalidates double tap
                         mMainThreadHandler.post(mDrawRunnable); // post draw event
@@ -360,7 +361,7 @@ public class WallpaperDemoService extends WallpaperService {
             textPaint.setTextAlign(Paint.Align.CENTER);
             textPaint.setTextSize(24);
             canvas.drawColor(Color.BLACK);
-            canvas.drawText("Wallpaper Demo", canvas.getWidth() / 2, canvas.getHeight() / 2, textPaint);
+            canvas.drawText(getString(R.string.app_name), canvas.getWidth() / 2, canvas.getHeight() / 2, textPaint);
         }
 
         // Asks framework to open the provided URL via Intent

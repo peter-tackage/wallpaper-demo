@@ -1,4 +1,4 @@
-# SoundCloud API properties
-host.scheme=<http|https>
-host.domain=<usually-api.soundcloud.com>
+# SoundCloud API properties template - copy to soundcloud.properties and edit
+host.scheme=<http or https>
+host.domain=<usually api.soundcloud.com>
 client.id=<yourkeygoeshere>

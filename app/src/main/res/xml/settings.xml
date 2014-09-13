@@ -1,34 +1,34 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
-  android:title="@string/wallpaper_settings_title"
-  android:key="@string/wallpaper_settings_key">
-  <EditTextPreference
-    android:title="@string/search_terms_preference_title"
-    android:summary="@string/search_terms_preference_summary"
-    android:key="@string/search_terms_preference"
-    android:hint="@string/search_terms_hint"
-    android:singleLine="true"
-    android:defaultValue="@string/default_search_term"
-    android:dialogTitle="@string/dialog_title_search_terms_preference" />
-  <ListPreference
-    android:title="@string/change_rate_preference_title"
-    android:summary="@string/change_rate_preference_summary"
-    android:key="@string/change_rate_preference"
-    android:defaultValue="@string/default_change_rate"
-    android:entries="@array/changeRateEntries"
-    android:entryValues="@array/changeRateValues" />
-  <ListPreference
-    android:title="@string/reload_rate_preference_title"
-    android:summary="@string/reload_rate_preference_summary"
-    android:key="@string/reload_rate_preference"
-    android:defaultValue="@string/default_reload_rate"
-    android:entries="@array/reloadRateEntries"
-    android:entryValues="@array/reloadRateValues" />
-  <ListPreference
-    android:title="@string/prefetch_preference_title"
-    android:summary="@string/prefetch_preference_summary"
-    android:key="@string/prefetch_preference"
-    android:defaultValue="@string/default_prefetch"
-    android:entries="@array/prefetchEntries"
-    android:entryValues="@array/prefetchValues" />
+    android:key="@string/wallpaper_settings_key"
+    android:title="@string/wallpaper_settings_title">
+    <EditTextPreference
+        android:defaultValue="@string/default_search_term"
+        android:dialogTitle="@string/dialog_title_search_terms_preference"
+        android:hint="@string/search_terms_hint"
+        android:key="@string/search_terms_preference"
+        android:singleLine="true"
+        android:summary="@string/search_terms_preference_summary"
+        android:title="@string/search_terms_preference_title" />
+    <ListPreference
+        android:defaultValue="@string/default_change_rate"
+        android:entries="@array/changeRateEntries"
+        android:entryValues="@array/changeRateValues"
+        android:key="@string/change_rate_preference"
+        android:summary="@string/change_rate_preference_summary"
+        android:title="@string/change_rate_preference_title" />
+    <ListPreference
+        android:defaultValue="@string/default_reload_rate"
+        android:entries="@array/reloadRateEntries"
+        android:entryValues="@array/reloadRateValues"
+        android:key="@string/reload_rate_preference"
+        android:summary="@string/reload_rate_preference_summary"
+        android:title="@string/reload_rate_preference_title" />
+    <ListPreference
+        android:defaultValue="@string/default_prefetch"
+        android:entries="@array/prefetchEntries"
+        android:entryValues="@array/prefetchValues"
+        android:key="@string/prefetch_preference"
+        android:summary="@string/prefetch_preference_summary"
+        android:title="@string/prefetch_preference_title" />
 </PreferenceScreen>

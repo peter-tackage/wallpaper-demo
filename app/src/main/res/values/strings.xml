@@ -1,25 +1,38 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-  <string name="app_name">Wallpaper Demo</string>
-  <string name="wallpaper_settings_title">Wallpaper Settings</string>
-  <string name="search_terms_preference_title">Search Terms</string>
-  <string name="search_terms_preference_summary">"Search terms to find interesting waveforms"</string>
-  <string name="dialog_title_search_terms_preference">Search Terms</string>
-  <string name="change_rate_preference_title">Waveform Change Rate</string>
-  <string name="change_rate_preference_summary">How often the waveform changes</string>
-  <string name="change_rate_preference">change_rate_preference</string>
-  <string name="search_terms_preference">search_term_preference</string>
-  <string name="wallpaper_description">Shows SoundCloud waveforms that change periodically</string>
-  <string name="reload_rate_preference_title">Reload Rate</string>
-  <string name="reload_rate_preference_summary">How often new waveforms should be downloaded</string>
-  <string name="reload_rate_preference">reload_rate_preference</string>
-  <string name="prefetch_preference_title">Limits</string>
-  <string name="prefetch_preference_summary">How many waveforms should downloaded at once</string>
-  <string name="prefetch_preference">prefetch_preference</string>
-  <string name="search_terms_hint">E.g. electronic</string>
-  <string name="wallpaper_settings_key">wallpaper_settings</string>
-  <string name="default_search_term">many object and sounds</string>
-  <string name="default_change_rate">60</string>
-  <string name="default_reload_rate">3600</string>
-  <string name="default_prefetch">10</string>
+    <!-- App general -->
+    <string name="app_name">Wallpaper Demo</string>
+
+    <!-- Settings general -->
+    <string name="wallpaper_settings_key">wallpaper_settings</string>
+    <string name="wallpaper_settings_title">Wallpaper Settings</string>
+    <string name="wallpaper_description">Shows SoundCloud waveforms that change periodically</string>
+
+    <!-- Search term -->
+    <string name="search_terms_preference_title">Search Terms</string>
+    <string name="search_terms_preference">search_term_preference</string>
+    <string name="search_terms_preference_summary">"Search terms to find interesting waveforms"</string>
+    <string name="search_terms_hint">E.g. electronic</string>
+    <string name="dialog_title_search_terms_preference">Search Terms</string>
+
+    <!-- Waveform change rate -->
+    <string name="change_rate_preference_title">Waveform Change Rate</string>
+    <string name="change_rate_preference_summary">How often the waveform changes</string>
+    <string name="change_rate_preference">change_rate_preference</string>
+
+    <!-- Waveform API reload rate -->
+    <string name="reload_rate_preference_title">Reload Rate</string>
+    <string name="reload_rate_preference_summary">How often new waveforms should be downloaded</string>
+    <string name="reload_rate_preference">reload_rate_preference</string>
+
+    <!-- API prefetch count -->
+    <string name="prefetch_preference_title">Limits</string>
+    <string name="prefetch_preference_summary">How many waveforms should downloaded at once</string>
+    <string name="prefetch_preference">prefetch_preference</string>
+
+    <!-- Defaults -->
+    <string name="default_search_term">many object and sounds</string>
+    <string name="default_change_rate">60</string>
+    <string name="default_reload_rate">3600</string>
+    <string name="default_prefetch">10</string>
 </resources>

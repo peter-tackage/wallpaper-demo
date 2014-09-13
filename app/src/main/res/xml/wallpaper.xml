@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <wallpaper xmlns:android="http://schemas.android.com/apk/res/android"
-  android:settingsActivity="com.moac.android.wallpaperdemo.activity.SettingsActivity"
-  android:description="@string/wallpaper_description" />
+    android:description="@string/wallpaper_description"
+    android:settingsActivity="com.moac.android.wallpaperdemo.activity.SettingsActivity" />
